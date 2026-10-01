@@ -1,39 +1,36 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# Dependencies
+node_modules/
+/client/frontend/node_modules/
+/saas/node_modules/
+/saas/dist/
+
+# Binaries & Build Artifacts
+*.exe
+*.exe~
+*.dll
 *.so
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
+*.dylib
+/engine/build/
+/client/build/
+/engine/proxy-engine.exe
 
-# Virtual Environment
-.venv/
-venv/
-ENV/
-env/
+# Databases & Cache
+*.db
+*.db-wal
+*.db-shm
+.turbo/
+.next/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Environment Variables
+.env
+.env.local
+.env.production
 
 # Data files (auto-generated)
 data/proxies_status.json
 data/blocklist.json
 data/traffic_log.json
 
-# Logs
+# Logs & History
 *.log
-
-# PowerShell history
 PowerShellHistory.txt

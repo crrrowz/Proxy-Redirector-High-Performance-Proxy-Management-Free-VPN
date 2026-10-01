@@ -1,0 +1,117 @@
+name: Continuous Integration & Verification Pipeline
+
+on:
+  push:
+    branches: [ main, master, 'release/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Go Engine & Client Matrix ──
+  go-test:
+    name: Go Core Verification (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        go: ['1.22', '1.23']
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - name: Verify Go Multi-Module Workspace
+        run: go work sync
+
+      - name: Test Go Engine Subsystems
+        working-directory: ./engine
+        run: go test -v -race -coverprofile=engine-coverage.out ./...
+
+      - name: Test Go Client Core & Mocks
+        working-directory: ./client
+        run: go test -v -race -coverprofile=client-coverage.out ./...
+
+      - name: Compile Headless CLI Binary (`proxy-cli`)
+        working-directory: ./client
+        run: go build -v -o proxy-cli ./cmd/cli
+
+      - name: Compile Engine Daemon Binary
+        working-directory: ./engine
+        run: go build -v -o engine ./cmd/engine
+
+  # ── 2. Node.js SaaS Backend Pipeline ──
+  node-saas-test:
+    name: Node.js SaaS Platform Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['20', '22']
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+          cache-dependency-path: saas/package-lock.json
+
+      - name: Install SaaS Dependencies
+        working-directory: ./saas
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./saas
+        run: npx prisma generate
+
+      - name: Build TypeScript Project
+        working-directory: ./saas
+        run: npm run build
+
+      - name: Execute Node.js Test Suite
+        working-directory: ./saas
+        run: npm test
+
+  # ── 3. Linting & Formatting Quality Gate ──
+  lint-and-validate:
+    name: Code Quality & Architecture Conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Go Formatting Check
+        run: |
+          if [ "$(gofmt -s -l engine client shared | wc -l)" -gt 0 ]; then
+            echo "Unformatted Go code found:"
+            gofmt -s -l engine client shared
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check SaaS TypeScript Types
+        working-directory: ./saas
+        run: |
+          npm ci
+          npx prisma generate
+          npx tsc --noEmit

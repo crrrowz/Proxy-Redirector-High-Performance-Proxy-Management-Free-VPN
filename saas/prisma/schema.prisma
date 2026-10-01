@@ -1,0 +1,225 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  PRO_USER
+  ENTERPRISE
+  ADMIN
+  SUPPORT
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum RelayStatus {
+  ONLINE
+  DEGRADED
+  OFFLINE
+  MAINTENANCE
+}
+
+enum ProxyPoolType {
+  STATIC_DEDICATED
+  STATIC_SHARED
+  DYNAMIC_ROTATING
+}
+
+enum ProxyTier {
+  TIER_1_PRIVATE_VPS
+  TIER_2_STATIC_ISP
+  TIER_3_STATIC_DATACENTER
+}
+
+model User {
+  id               String          @id @default(uuid())
+  email            String          @unique
+  passwordHash     String
+  name             String?
+  role             Role            @default(USER)
+  emailVerified    Boolean         @default(false)
+  stripeCustomerId String?         @unique
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  devices          Device[]
+  subscriptions    Subscription[]
+  sessions         ProxySession[]
+  usageLogs        UsageLog[]
+  auditLogs        AuditLog[]
+  apiKeys          ApiKey[]
+  assignedProxies  StaticProxy[]
+
+  @@map("users")
+}
+
+model Plan {
+  id               String          @id @default(uuid())
+  name             String          @unique
+  stripePriceId    String?         @unique
+  priceMonthly     Int             // Cents ($5 = 500)
+  bandwidthLimitGb Int
+  maxDevices       Int
+  allowedRegions   String[]
+  hasAdBlock       Boolean         @default(true)
+  hasDedicatedIps  Boolean         @default(false)
+  isActive         Boolean         @default(true)
+
+  subscriptions    Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id               String             @id @default(uuid())
+  userId           String
+  planId           String
+  stripeSubId      String?            @unique
+  status           SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean          @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             Plan               @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Device {
+  id               String          @id @default(uuid())
+  userId           String
+  fingerprint      String
+  deviceName       String
+  deviceOs         String
+  lastIp           String?
+  lastActive       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@map("devices")
+}
+
+model RelayServer {
+  id               String          @id @default(uuid())
+  name             String
+  region           String
+  country          String
+  publicIp         String          @unique
+  grpcPort         Int             @default(50051)
+  socksPort        Int             @default(1080)
+  httpPort         Int             @default(8080)
+  status           RelayStatus     @default(ONLINE)
+  currentLoad      Float           @default(0.0)
+  activeSessions   Int             @default(0)
+  secretKeyHash    String
+  lastHeartbeat    DateTime        @default(now())
+
+  sessions         ProxySession[]
+
+  @@map("relay_servers")
+}
+
+model ProxySession {
+  id               String          @id @default(uuid())
+  userId           String
+  relayId          String
+  sessionToken     String          @unique
+  bytesUp          BigInt          @default(0)
+  bytesDown        BigInt          @default(0)
+  connectedAt      DateTime        @default(now())
+  disconnectedAt   DateTime?
+  clientIp         String
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relay            RelayServer     @relation(fields: [relayId], references: [id])
+
+  @@map("proxy_sessions")
+}
+
+model StaticProxy {
+  id               String        @id @default(uuid())
+  ip               String        @unique
+  port             Int
+  protocol         String        @default("socks5")
+  username         String?
+  password         String?
+  poolType         ProxyPoolType @default(STATIC_DEDICATED)
+  tier             ProxyTier     @default(TIER_2_STATIC_ISP)
+  providerName     String        @default("Self-Hosted")
+  countryCode      String        @default("US")
+  city             String?
+  asn              Int?
+  ispName          String?
+  fraudScore       Int           @default(0)
+  isAlive          Boolean       @default(true)
+  lastLatencyMs    Float         @default(0.0)
+  uptimePercent    Float         @default(100.0)
+  consecutiveFails Int           @default(0)
+  lastCheckedAt    DateTime      @default(now())
+
+  assignedUserId   String?
+  assignedAt       DateTime?
+  leaseExpiresAt   DateTime?
+
+  assignedUser     User?         @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([countryCode, poolType, isAlive])
+  @@index([assignedUserId])
+  @@map("static_proxies")
+}
+
+model UsageLog {
+  id               String          @id @default(uuid())
+  userId           String
+  date             DateTime        @db.Date
+  bytesTransferred BigInt
+  createdAt        DateTime        @default(now())
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("usage_logs")
+}
+
+model ApiKey {
+  id               String          @id @default(uuid())
+  userId           String
+  keyHash          String          @unique
+  prefix           String
+  name             String
+  expiresAt        DateTime?
+  createdAt        DateTime        @default(now())
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model AuditLog {
+  id               String          @id @default(uuid())
+  userId           String?
+  action           String
+  ipAddress        String?
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+
+  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

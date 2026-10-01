@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] — 2026-10-01 (Unified Architecture Release)
+
+### Added
+- ⚡ **High-Performance Go Daemon (`engine/`)**
+  - Concurrency-safe Go 1.22+ proxy engine daemon.
+  - Multi-threaded proxy checking with SSL verification, latency probing, and anonymity detection.
+  - Dynamic Surge IP rotation with zero connection drops.
+  - SQLite WAL mode database persistence with automated JSON flat-file data migration.
+  - SOCKS5 and HTTP CONNECT proxy relays on ports `:1080` and `:8080`.
+- 💻 **Dual Client Architecture (`client/`)**
+  - Native **Wails v2** Desktop GUI with React 18 & Tailwind CSS.
+  - Standalone headless **`proxy-cli`** Cobra CLI binary for servers and scripts.
+  - Unified `client/internal/core` business logic shared 100% between GUI and CLI.
+- 🌐 **Modern Embedded Web Dashboard (`engine/static`)**
+  - Responsive 6-tab dark glassmorphic web UI on port `:9090`.
+  - Tabs: Live Dashboard, Proxy Pool, AdBlock Center, Traffic Stream, Analytics, and Dynamic Engine Settings.
+- ☁️ **Enterprise Cloud SaaS Backend (`saas/`)**
+  - Node.js 20+ & TypeScript backend built with Clean Hexagonal Architecture.
+  - Prisma ORM with PostgreSQL / Supabase multi-container Docker Compose configuration (`docker-compose.supabase.yml`).
+  - Redis token blacklisting, sliding-window rate limiting, and real-time bandwidth metering.
+  - Multi-region VPS relay deployment scripts (`deploy_relay.sh` and `deploy_relay.ps1`).
+  - Dedicated static residential and datacenter IP leasing with fraud score verification.
+  - Full React 18 / Vite SaaS User Web Portal in `saas/frontend/`.
+- 📚 **Comprehensive Open-Source Documentation Suite**
+  - `ARCHITECTURE.md`, `PLAN.md`, `PROGRESS.md`, `ROADMAP_NEXT_PHASE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`, `GOVERNANCE.md`, `MAINTAINERS.md`, `docs/TROUBLESHOOTING.md`.
+  - Multi-OS GitHub Actions CI matrix (`.github/workflows/ci.yml`).
+
+### Removed
+- 🗑️ Decommissioned and purged legacy Python codebase and flat-file dependency scripts.
+
+---
+
 ## [2.3.0] — 2026-04-30
 
 ### Added

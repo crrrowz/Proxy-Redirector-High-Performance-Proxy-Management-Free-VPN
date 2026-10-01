@@ -1,0 +1,361 @@
+syntax = "proto3";
+
+package engine.v1;
+
+option go_package = "./;pb";
+
+import "google/protobuf/timestamp.proto";
+
+// ═══════════════════════════════════════════════════════════
+// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ═══════════════════════════════════════════════════════════
+service ProxyEngine {
+  // ── الاتصال والقطع ──
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+
+  // ── البروكسي النشط ──
+  rpc GetActiveProxy(Empty) returns (ProxyInfo);
+  rpc StreamProxyUpdates(Empty) returns (stream ProxyUpdate);
+
+  // ── المناطق ──
+  rpc GetRegions(Empty) returns (RegionsResponse);
+
+  // ── الحالة ──
+  rpc GetEngineStatus(Empty) returns (EngineStatus);
+  rpc GetPoolSummary(Empty) returns (PoolSummary);
+  rpc GetProxies(GetProxiesRequest) returns (ProxiesResponse);
+
+  // ── الاستهلاك ──
+  rpc ReportUsage(UsageReport) returns (UsageResponse);
+
+  // ── AdBlock ──
+  rpc GetBlockStats(Empty) returns (BlockStats);
+  rpc ToggleAdBlock(ToggleRequest) returns (ToggleResponse);
+  rpc CheckDomain(DomainCheckRequest) returns (DomainCheckResponse);
+
+  // ── المصادقة ──
+  rpc Authenticate(AuthRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshRequest) returns (AuthResponse);
+
+  // ── الإعدادات ──
+  rpc GetConfig(Empty) returns (ConfigResponse);
+  rpc UpdateConfig(ConfigUpdateRequest) returns (ConfigResponse);
+
+  // ── التحليلات ──
+  rpc GetAnalyticsSummary(Empty) returns (AnalyticsSummary);
+  rpc GetTopProxies(TopProxiesRequest) returns (TopProxiesResponse);
+
+  // ── التبديل الديناميكي (Rotation) ──
+  rpc GetRotationStatus(Empty) returns (RotationStatus);
+  rpc GetRotationPool(Empty) returns (RotationPoolResponse);
+  rpc EnableRotation(RotationConfig) returns (Empty);
+  rpc DisableRotation(Empty) returns (Empty);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Common
+// ═══════════════════════════════════════════════════════════
+message Empty {}
+
+// ═══════════════════════════════════════════════════════════
+// Proxy Types
+// ═══════════════════════════════════════════════════════════
+enum ProxyProtocol {
+  PROXY_PROTOCOL_UNSPECIFIED = 0;
+  PROXY_PROTOCOL_SOCKS5 = 1;
+  PROXY_PROTOCOL_SOCKS4 = 2;
+  PROXY_PROTOCOL_HTTP = 3;
+  PROXY_PROTOCOL_HTTPS = 4;
+}
+
+enum ProxyStatus {
+  PROXY_STATUS_UNSPECIFIED = 0;
+  PROXY_STATUS_ALIVE = 1;
+  PROXY_STATUS_DEAD = 2;
+  PROXY_STATUS_CHECKING = 3;
+  PROXY_STATUS_BLACKLISTED = 4;
+  PROXY_STATUS_UNCHECKED = 5;
+}
+
+message ProxyInfo {
+  string id = 1;
+  string ip = 2;
+  int32 port = 3;
+  ProxyProtocol protocol = 4;
+  string country = 5;
+  string city = 6;
+  ProxyStatus status = 7;
+  double speed_ms = 8;
+  double score = 9;
+  bool ssl_verified = 10;
+  int32 consecutive_failures = 11;
+  bool is_active = 12;
+  string username = 13;
+  string password = 14;
+  google.protobuf.Timestamp last_checked = 15;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Connect / Disconnect
+// ═══════════════════════════════════════════════════════════
+message ConnectRequest {
+  string region = 1;
+  string protocol = 2;
+}
+
+message ConnectResponse {
+  bool success = 1;
+  string session_id = 2;
+  ProxyInfo active_proxy = 3;
+  string relay_host = 4;
+  int32 relay_port = 5;
+  string session_token = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  string error = 8;
+}
+
+message DisconnectRequest {
+  string session_id = 1;
+}
+
+message DisconnectResponse {
+  bool success = 1;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Streaming Updates
+// ═══════════════════════════════════════════════════════════
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_PROXY_CHANGED = 1;
+  UPDATE_TYPE_PROXY_DOWN = 2;
+  UPDATE_TYPE_POOL_UPDATED = 3;
+  UPDATE_TYPE_BANDWIDTH_WARNING = 4;
+  UPDATE_TYPE_ENGINE_STOPPED = 5;
+}
+
+message ProxyUpdate {
+  UpdateType type = 1;
+  ProxyInfo proxy = 2;
+  PoolSummary pool = 3;
+  string message = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Regions
+// ═══════════════════════════════════════════════════════════
+message Region {
+  string code = 1;
+  string name = 2;
+  int32 server_count = 3;
+  int32 load_pct = 4;
+  int32 avg_latency_ms = 5;
+  bool available = 6;
+  string locked_reason = 7;
+}
+
+message RegionsResponse {
+  repeated Region regions = 1;
+  string current_region = 2;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Engine Status
+// ═══════════════════════════════════════════════════════════
+message EngineStatus {
+  bool running = 1;
+  bool starting = 2;
+  string mode = 3;
+  int32 socks5_port = 4;
+  int32 http_port = 5;
+  bool socks5_ok = 6;
+  bool http_ok = 7;
+  bool auth_enabled = 8;
+  repeated string local_ips = 9;
+  ProxyInfo active_proxy = 10;
+  PoolSummary pool = 11;
+  DiscoveryStatus discovery = 12;
+}
+
+message DiscoveryStatus {
+  bool enabled = 1;
+  bool paused = 2;
+  int32 round = 3;
+  int32 checked = 4;
+  int32 alive_found = 5;
+  int32 total_unchecked = 6;
+}
+
+message PoolSummary {
+  int32 total = 1;
+  int32 alive = 2;
+  int32 dead = 3;
+  int32 dead_retryable = 4;
+  int32 blacklisted = 5;
+  int32 unchecked = 6;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Proxies List
+// ═══════════════════════════════════════════════════════════
+message GetProxiesRequest {
+  int32 limit = 1;
+  string country_filter = 2;
+}
+
+message ProxiesResponse {
+  repeated ProxyInfo proxies = 1;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Usage
+// ═══════════════════════════════════════════════════════════
+message UsageReport {
+  string session_id = 1;
+  int64 bytes_up = 2;
+  int64 bytes_down = 3;
+  int32 interval_seconds = 4;
+}
+
+message UsageResponse {
+  string status = 1;
+  double bandwidth_remaining_gb = 2;
+  string action = 3;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AdBlock
+// ═══════════════════════════════════════════════════════════
+message BlockStats {
+  bool enabled = 1;
+  int64 total_blocked = 2;
+  int32 rules_count = 3;
+  int32 whitelist_count = 4;
+  map<string, bool> categories_enabled = 5;
+}
+
+message ToggleRequest {
+  string category = 1;
+  bool enabled = 2;
+}
+
+message ToggleResponse {
+  bool success = 1;
+  bool enabled = 2;
+}
+
+message DomainCheckRequest {
+  string domain = 1;
+}
+
+message DomainCheckResponse {
+  bool blocked = 1;
+  string category = 2;
+  string matched_rule = 3;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Auth
+// ═══════════════════════════════════════════════════════════
+message AuthRequest {
+  string email = 1;
+  string password = 2;
+  string device_fingerprint = 3;
+  string device_name = 4;
+  string device_os = 5;
+}
+
+message AuthResponse {
+  bool success = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int32 expires_in = 4;
+  UserInfo user = 5;
+  string error = 6;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message UserInfo {
+  string id = 1;
+  string email = 2;
+  string role = 3;
+  string plan = 4;
+  double bandwidth_remaining_gb = 5;
+  int32 max_devices = 6;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Config
+// ═══════════════════════════════════════════════════════════
+message ConfigResponse {
+  map<string, string> config = 1;
+}
+
+message ConfigUpdateRequest {
+  map<string, string> updates = 1;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Analytics
+// ═══════════════════════════════════════════════════════════
+message AnalyticsSummary {
+  int32 total_tracked = 1;
+  double avg_speed_ms = 2;
+  double avg_uptime_pct = 3;
+  ProxyInfo best_proxy = 4;
+  ProxyInfo worst_proxy = 5;
+}
+
+message TopProxiesRequest {
+  int32 limit = 1;
+}
+
+message TopProxiesResponse {
+  repeated ProxyInfo proxies = 1;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Rotation
+// ═══════════════════════════════════════════════════════════
+message RotationStatus {
+  bool enabled = 1;
+  int32 pool_size = 2;
+  int32 current_index = 3;
+  string active_proxy_ip = 4;
+  int32 active_proxy_port = 5;
+  string active_proxy_type = 6;
+  int32 interval_sec = 7;
+  repeated string proxy_types = 8;
+  string country_filter = 9;
+  int32 max_speed_ms = 10;
+  bool ssl_only = 11;
+  int32 filtered_count = 12;
+}
+
+message RotationPoolItem {
+  string ip = 1;
+  int32 port = 2;
+  string type = 3;
+  string country = 4;
+  double ping = 5;
+  bool ssl = 6;
+  double score = 7;
+}
+
+message RotationPoolResponse {
+  repeated RotationPoolItem proxies = 1;
+}
+
+message RotationConfig {
+  int32 interval_sec = 1;
+  repeated string proxy_types = 2;
+  string country_filter = 3;
+  int32 max_speed_ms = 4;
+  int32 pool_size = 5;
+  bool ssl_only = 6;
+}

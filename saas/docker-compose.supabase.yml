@@ -1,0 +1,115 @@
+# ═══════════════════════════════════════════════════════════════════
+# Self-Hosted Supabase Stack for Proxy Redirector SaaS
+# ═══════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  # ── 1. PostgreSQL Database with Supabase Extensions ──
+  supabase-db:
+    image: supabase/postgres:15.1.1.78
+    container_name: supabase-db
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgrespassword123
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── 2. Redis Cache & Token Blacklist ──
+  supabase-redis:
+    image: redis:7-alpine
+    container_name: supabase-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - supabase_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── 3. PostgREST (Auto RESTful API for Postgres) ──
+  supabase-rest:
+    image: postgrest/postgrest:v12.0.2
+    container_name: supabase-rest
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgrespassword123@supabase-db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # ── 4. Supabase Studio Web UI Dashboard ──
+  supabase-studio:
+    image: supabase/studio:20240101-8e3b2e5
+    container_name: supabase-studio
+    restart: unless-stopped
+    ports:
+      - "8000:3000"
+    environment:
+      STUDIO_PG_META_URL: http://supabase-meta:8080
+      POSTGRES_PASSWORD: postgrespassword123
+      DEFAULT_ORGANIZATION_NAME: "Proxy Redirector"
+      DEFAULT_PROJECT_NAME: "SaaS Cloud"
+      SUPABASE_URL: http://supabase-kong:8000
+      SUPABASE_PUBLIC_URL: http://localhost:54321
+      SUPABASE_ANON_KEY: anon-key-placeholder
+      SUPABASE_SERVICE_KEY: service-role-key-placeholder
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # ── 5. Supabase Kong API Gateway ──
+  supabase-kong:
+    image: kong:2.8.1-alpine
+    container_name: supabase-kong
+    restart: unless-stopped
+    ports:
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # ── 6. Proxy Redirector Node.js SaaS API ──
+  saas-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proxy-redirector-saas-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgrespassword123@supabase-db:5432/postgres?schema=public
+      REDIS_URL: redis://supabase-redis:6379
+      JWT_ACCESS_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      JWT_REFRESH_SECRET: super-secret-jwt-refresh-token-with-at-least-32-characters-long
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-redis:
+        condition: service_healthy
+
+volumes:
+  supabase_db_data:
+  supabase_redis_data:

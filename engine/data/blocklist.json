@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "categories_enabled": {
+    "ads": true,
+    "custom": true,
+    "malware": true,
+    "tracking": true
+  },
+  "exact_domains": {
+    "adnxs.com": "ads",
+    "clarity.ms": "tracking",
+    "doubleclick.net": "ads",
+    "facebook.net": "tracking",
+    "google-analytics.com": "tracking",
+    "googlesyndication.com": "ads",
+    "hotjar.com": "tracking",
+    "malwaredomainlist.com": "malware",
+    "taboola.com": "ads"
+  },
+  "wildcard_rules": [],
+  "whitelist": []
+}

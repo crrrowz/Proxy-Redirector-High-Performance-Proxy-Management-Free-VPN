@@ -1,0 +1,16 @@
+{
+  "app_name": "Proxy Redirector",
+  "version": "3.0.0",
+  "description": "Proxy Redirector is a powerful tool that allows you to redirect your internet traffic through a proxy server.",
+  "manufacturer": "Innovacode",
+  "website": "https://innovacode.ProxyRedirector.org",
+  "support_email": "support@innovacode.org",
+  "copyright": "© 2026 Innovacode",
+  "assets": {
+    "icon_path": "shared/assets/icons/icon.png"
+  },
+  "ui": {
+    "theme_color": "#10B981",
+    "primary_font": "Outfit"
+  }
+}

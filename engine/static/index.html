@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Redirector — Engine Dashboard</title>
+    <meta name="description" content="High-performance SOCKS5/HTTP Proxy Manager, Real-time Health Analytics, and AdBlock Engine.">
+    <!-- Fonts: Outfit & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3.0.0">
+</head>
+<body>
+    <div class="bg-mesh"></div>
+
+    <!-- Header / Titlebar -->
+    <header class="top-nav">
+        <div class="brand">
+            <div class="status-orb" id="engine-status-orb"></div>
+            <div class="brand-text">
+                <h1>Proxy Redirector</h1>
+                <span class="version-tag">v3.0 Engine</span>
+            </div>
+        </div>
+        <div class="top-meta">
+            <div class="meta-item">
+                <span class="meta-label">REST API</span>
+                <span class="meta-val" id="api-port-badge">:9090</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">SOCKS5</span>
+                <span class="meta-val" id="socks-port-badge">:1080</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">HTTP</span>
+                <span class="meta-val" id="http-port-badge">:8080</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-body">
+        <!-- Navigation Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <div class="nav-section-title">Operations</div>
+                <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+                    <span class="tab-icon">📊</span>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-tab" data-tab="proxies" onclick="switchTab('proxies', this)">
+                    <span class="tab-icon">🔄</span>
+                    <span>Proxy Pool</span>
+                    <span class="badge-count" id="nav-pool-count">0</span>
+                </button>
+                <button class="nav-tab" data-tab="adblock" onclick="switchTab('adblock', this)">
+                    <span class="tab-icon">🛡️</span>
+                    <span>Ad Blocker</span>
+                    <span class="badge-count danger" id="nav-blocked-count">0</span>
+                </button>
+                <button class="nav-tab" data-tab="traffic" onclick="switchTab('traffic', this)">
+                    <span class="tab-icon">📝</span>
+                    <span>Traffic Log</span>
+                </button>
+                <button class="nav-tab" data-tab="analytics" onclick="switchTab('analytics', this)">
+                    <span class="tab-icon">📈</span>
+                    <span>Analytics</span>
+                </button>
+                <div class="nav-section-title" style="margin-top: 16px;">System</div>
+                <button class="nav-tab" data-tab="settings" onclick="switchTab('settings', this)">
+                    <span class="tab-icon">⚙️</span>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="active-badge">
+                    <span class="pulse-dot"></span>
+                    <span id="daemon-state-text">Engine Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-viewport">
+
+            <!-- ═══ TAB 1: Dashboard ═══ -->
+            <section id="tab-dashboard" class="tab-content active">
+                <!-- Stat Cards Grid -->
+                <div class="stats-row">
+                    <div class="metric-card cyan">
+                        <div class="metric-header">
+                            <span class="metric-title">Alive Proxies</span>
+                            <span class="metric-icon">🔄</span>
+                        </div>
+                        <div class="metric-number" id="stat-alive">0</div>
+                        <div class="metric-sub" id="stat-total-sub">Total pool: 0</div>
+                    </div>
+                    <div class="metric-card orange">
+                        <div class="metric-header">
+                            <span class="metric-title">Ads Intercepted</span>
+                            <span class="metric-icon">🛡️</span>
+                        </div>
+                        <div class="metric-number" id="stat-blocked">0</div>
+                        <div class="metric-sub" id="stat-rules-sub">Active rules: 0</div>
+                    </div>
+                    <div class="metric-card green">
+                        <div class="metric-header">
+                            <span class="metric-title">Active Proxy Latency</span>
+                            <span class="metric-icon">⚡</span>
+                        </div>
+                        <div class="metric-number" id="stat-active-speed">-- ms</div>
+                        <div class="metric-sub" id="stat-active-country">Country: --</div>
+                    </div>
+                    <div class="metric-card purple">
+                        <div class="metric-header">
+                            <span class="metric-title">Pool Reliability</span>
+                            <span class="metric-icon">🏆</span>
+                        </div>
+                        <div class="metric-number" id="stat-avg-score">--</div>
+                        <div class="metric-sub">Score index / 100</div>
+                    </div>
+                </div>
+
+                <!-- Active Proxy & Server Info Dual Card -->
+                <div class="grid-2col">
+                    <!-- Active Proxy Card -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>⚡ Current Active Proxy</h3>
+                            <button class="btn primary sm" onclick="forceSwitchProxy()">🔄 Force Switch</button>
+                        </div>
+                        <div class="active-proxy-box" id="active-proxy-card">
+                            <div class="loader-spinner"></div>
+                        </div>
+                    </div>
+
+                    <!-- Server Ports & Network Access -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🔌 Network Gateways</h3>
+                            <span class="tag-badge success">Listening</span>
+                        </div>
+                        <div class="gateway-list">
+                            <div class="gateway-item">
+                                <div class="gw-label">SOCKS5 Ingress (TCP)</div>
+                                <div class="gw-addr">0.0.0.0:1080</div>
+                            </div>
+                            <div class="gateway-item">
+                                <div class="gw-label">HTTP CONNECT Proxy</div>
+                                <div class="gw-addr">0.0.0.0:8080</div>
+                            </div>
+                            <div class="gateway-item">
+                                <div class="gw-label">gRPC RPC Core</div>
+                                <div class="gw-addr">127.0.0.1:50051</div>
+                            </div>
+                            <div class="gateway-item">
+                                <div class="gw-label">REST API & Dashboard</div>
+                                <div class="gw-addr">127.0.0.1:9090</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pool Status Breakdown Bar -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 Pool Health Distribution</h3>
+                        <div id="pool-counts-summary" class="panel-subtitle">Loading pool stats...</div>
+                    </div>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-segment green" id="bar-alive" style="width: 0%"></div>
+                        <div class="progress-segment orange" id="bar-retry" style="width: 0%"></div>
+                        <div class="progress-segment red" id="bar-dead" style="width: 0%"></div>
+                        <div class="progress-segment gray" id="bar-unchecked" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-legend">
+                        <span class="legend-item"><span class="dot green"></span> Alive (<span id="leg-alive">0</span>)</span>
+                        <span class="legend-item"><span class="dot orange"></span> Retryable (<span id="leg-retry">0</span>)</span>
+                        <span class="legend-item"><span class="dot red"></span> Dead/Banned (<span id="leg-dead">0</span>)</span>
+                        <span class="legend-item"><span class="dot gray"></span> Unchecked (<span id="leg-unchecked">0</span>)</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 2: Proxy Pool ═══ -->
+            <section id="tab-proxies" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>🔄 Managed Proxy Pool</h2>
+                        <span class="subtitle" id="pool-table-subtitle">All proxies stored and ranked in engine database</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        <input type="text" class="input-search" id="proxy-filter-input" placeholder="🔍 Search IP, country, protocol..." oninput="filterProxiesTable()">
+                        <select class="select-filter" id="proxy-country-select" onchange="filterProxiesTable()">
+                            <option value="">🌍 All Countries</option>
+                        </select>
+                        <button class="btn primary sm" onclick="openAddProxyModal()">+ Add Custom Proxy</button>
+                    </div>
+                </div>
+
+                <div class="panel no-pad">
+                    <div class="table-wrap">
+                        <table id="proxies-data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Endpoint (IP:Port)</th>
+                                    <th>Type</th>
+                                    <th>Country</th>
+                                    <th>Status</th>
+                                    <th>Latency</th>
+                                    <th>Score</th>
+                                    <th>SSL</th>
+                                    <th>Fails</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="proxies-tbody">
+                                <tr><td colspan="10" class="table-loading">Loading proxy records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 3: Ad Blocker ═══ -->
+            <section id="tab-adblock" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>🛡️ Ad & Tracker Blocker Engine</h2>
+                        <span class="subtitle">Intercepts advertising networks, telemetry, and tracking at the proxy level</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="adblock-master-toggle" onchange="toggleAdblockMaster(this.checked)" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Categories Row -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Protection Categories</h3>
+                    </div>
+                    <div class="category-pills">
+                        <label class="cat-pill">
+                            <input type="checkbox" id="cat-toggle-ads" onchange="toggleAdCategory('ads', this.checked)" checked>
+                            <span class="pill-badge ads">🚫 Advertising Networks</span>
+                        </label>
+                        <label class="cat-pill">
+                            <input type="checkbox" id="cat-toggle-tracking" onchange="toggleAdCategory('tracking', this.checked)" checked>
+                            <span class="pill-badge tracking">👁️ User Tracking & Telemetry</span>
+                        </label>
+                        <label class="cat-pill">
+                            <input type="checkbox" id="cat-toggle-malware" onchange="toggleAdCategory('malware', this.checked)" checked>
+                            <span class="pill-badge malware">☠️ Malware & Phishing</span>
+                        </label>
+                        <label class="cat-pill">
+                            <input type="checkbox" id="cat-toggle-custom" onchange="toggleAdCategory('custom', this.checked)" checked>
+                            <span class="pill-badge custom">⚙️ Custom User Rules</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Add Rule Form -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>➕ Add Domain Rule</h3>
+                    </div>
+                    <div class="inline-form">
+                        <input type="text" class="input-text flex-1" id="new-rule-input" placeholder="Domain or wildcard (e.g. ads.example.com or *telemetry*)">
+                        <select class="select-filter" id="new-rule-cat">
+                            <option value="ads">Ads</option>
+                            <option value="tracking">Tracking</option>
+                            <option value="malware">Malware</option>
+                            <option value="custom" selected>Custom</option>
+                        </select>
+                        <button class="btn primary" onclick="submitBlockRule()">+ Add Block Rule</button>
+                    </div>
+                </div>
+
+                <!-- Rules Table & Whitelist Split -->
+                <div class="grid-2col">
+                    <div class="panel no-pad">
+                        <div class="panel-pad-header">
+                            <h3>Active Block Rules</h3>
+                            <input type="text" class="input-search sm" id="rule-search-input" placeholder="Filter rules..." oninput="filterRulesTable()">
+                        </div>
+                        <div class="table-wrap max-h-350">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Domain / Pattern</th>
+                                        <th>Category</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rules-tbody">
+                                    <tr><td colspan="3" class="table-loading">Loading rules...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>✅ Whitelist Exceptions</h3>
+                            <span class="badge-count" id="whitelist-count">0</span>
+                        </div>
+                        <div class="inline-form mb-12">
+                            <input type="text" class="input-text flex-1" id="new-whitelist-input" placeholder="Exception domain (e.g. google.com)">
+                            <button class="btn success sm" onclick="submitWhitelistRule()">+ Allow</button>
+                        </div>
+                        <div class="whitelist-box" id="whitelist-container">
+                            <div class="empty-hint">No whitelist exceptions defined.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 4: Traffic Log ═══ -->
+            <section id="tab-traffic" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>📝 Request Traffic Stream</h2>
+                        <span class="subtitle">Live socket requests routed through local proxy instances</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        <select class="select-filter" id="traffic-status-filter" onchange="filterTrafficStream()">
+                            <option value="all">All Traffic</option>
+                            <option value="success">✓ Success (Forwarded)</option>
+                            <option value="blocked">🚫 Blocked (AdBlock)</option>
+                            <option value="failed">✗ Failed / Timed Out</option>
+                        </select>
+                        <input type="text" class="input-search" id="traffic-search-input" placeholder="🔍 Search host, IP..." oninput="filterTrafficStream()">
+                        <button class="btn sm" onclick="clearTrafficLog()">Clear Buffer</button>
+                    </div>
+                </div>
+
+                <div class="panel no-pad">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Status</th>
+                                    <th>Client Origin</th>
+                                    <th>Protocol</th>
+                                    <th>Destination Target</th>
+                                    <th>Latency</th>
+                                </tr>
+                            </thead>
+                            <tbody id="traffic-tbody">
+                                <tr><td colspan="6" class="table-loading">Awaiting incoming network traffic...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 5: Analytics ═══ -->
+            <section id="tab-analytics" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>📈 Global Performance Analytics</h2>
+                        <span class="subtitle">Historical reliability tracking and uptime intelligence</span>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="metric-card cyan">
+                        <div class="metric-header">
+                            <span class="metric-title">Tracked Profiles</span>
+                            <span class="metric-icon">🔍</span>
+                        </div>
+                        <div class="metric-number" id="an-tracked-count">0</div>
+                        <div class="metric-sub">In permanent memory</div>
+                    </div>
+                    <div class="metric-card green">
+                        <div class="metric-header">
+                            <span class="metric-title">Pool Avg Latency</span>
+                            <span class="metric-icon">⚡</span>
+                        </div>
+                        <div class="metric-number" id="an-avg-speed">-- ms</div>
+                        <div class="metric-sub">Across alive nodes</div>
+                    </div>
+                    <div class="metric-card purple">
+                        <div class="metric-header">
+                            <span class="metric-title">Avg Pool Uptime</span>
+                            <span class="metric-icon">📊</span>
+                        </div>
+                        <div class="metric-number" id="an-avg-uptime">-- %</div>
+                        <div class="metric-sub">Historical availability</div>
+                    </div>
+                    <div class="metric-card orange">
+                        <div class="metric-header">
+                            <span class="metric-title">Peak Reliability Score</span>
+                            <span class="metric-icon">🏆</span>
+                        </div>
+                        <div class="metric-number" id="an-top-score">--</div>
+                        <div class="metric-sub">Top ranked node</div>
+                    </div>
+                </div>
+
+                <div class="panel no-pad">
+                    <div class="panel-pad-header">
+                        <h3>🏆 Top Proxy Leaderboard (Ranked by Reliability Score)</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Proxy Endpoint</th>
+                                    <th>Country</th>
+                                    <th>Avg Speed</th>
+                                    <th>Uptime %</th>
+                                    <th>Score</th>
+                                    <th>Checks</th>
+                                    <th>Classification Tags</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-tbody">
+                                <tr><td colspan="8" class="table-loading">Aggregating historical proxy metrics...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 6: Settings ═══ -->
+            <section id="tab-settings" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>⚙️ Engine Configuration</h2>
+                        <span class="subtitle">Persisted parameters saved to <code>data/config.json</code></span>
+                    </div>
+                    <button class="btn primary" onclick="saveEngineConfig()">💾 Save Changes</button>
+                </div>
+
+                <div class="grid-2col">
+                    <!-- Network Ports -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🔌 Gateway Ports</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>SOCKS5 Port</label>
+                            <input type="number" class="input-text" id="cfg-LOCAL_PORT" min="1" max="65535" value="1080">
+                        </div>
+                        <div class="form-group">
+                            <label>HTTP Proxy Port</label>
+                            <input type="number" class="input-text" id="cfg-HTTP_PROXY_PORT" min="1" max="65535" value="8080">
+                        </div>
+                        <div class="form-group">
+                            <label>REST API Port</label>
+                            <input type="number" class="input-text" id="cfg-REST_PORT" min="1" max="65535" value="9090" disabled>
+                        </div>
+                    </div>
+
+                    <!-- Target Filter & Pool Tuning -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🎯 Target Filters & Concurrency</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Target Country</label>
+                            <select class="select-filter" id="cfg-COUNTRY_FILTER">
+                                <option value="GLOBAL">🌍 Global (All Countries)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Speed Threshold (ms)</label>
+                            <input type="number" class="input-text" id="cfg-MAX_SPEED_MS" placeholder="0 = No limit" value="5000">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Concurrent Checks</label>
+                            <input type="number" class="input-text" id="cfg-MAX_CONCURRENT_CHECKS" min="5" max="200" value="50">
+                        </div>
+                    </div>
+
+                    <!-- Failover & Cooldown -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>⚡ Failover & Circuit Breaker</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Retries Before Switch</label>
+                            <input type="number" class="input-text" id="cfg-FAILOVER_MAX_RETRIES" min="1" max="10" value="3">
+                        </div>
+                        <div class="form-group">
+                            <label>Dead Proxy Retry Delay (sec)</label>
+                            <input type="number" class="input-text" id="cfg-DEAD_RETRY_AFTER_SECONDS" min="10" max="3600" value="120">
+                        </div>
+                        <div class="form-group">
+                            <label>Blacklist After Consecutive Fails</label>
+                            <input type="number" class="input-text" id="cfg-BLACKLIST_AFTER_FAILURES" min="3" max="50" value="10">
+                        </div>
+                    </div>
+
+                    <!-- Security & Checks -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🛡️ Security & Verification</h3>
+                        </div>
+                        <div class="form-row-toggle">
+                            <span>Anonymity Verification (Reject transparent proxies)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="cfg-ANONYMITY_CHECK" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-row-toggle">
+                            <span>SSL Verification (Check HTTPS support)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="cfg-SSL_CHECK_ENABLED" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="settings-alert-box" class="alert-box" style="display:none;"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modal: Add Custom Proxy -->
+    <div id="modal-add-proxy" class="modal-backdrop" onclick="closeAddProxyModal(event)">
+        <div class="modal-window" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>➕ Add Custom Proxy</h3>
+                <button class="btn-close" onclick="closeAddProxyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>IP Address</label>
+                    <input type="text" class="input-text" id="m-proxy-ip" placeholder="1.2.3.4">
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" class="input-text" id="m-proxy-port" placeholder="1080">
+                </div>
+                <div class="form-group">
+                    <label>Protocol Type</label>
+                    <select class="select-filter" id="m-proxy-type">
+                        <option value="socks5">SOCKS5</option>
+                        <option value="socks4">SOCKS4</option>
+                        <option value="http">HTTP</option>
+                        <option value="https">HTTPS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Username (Optional)</label>
+                    <input type="text" class="input-text" id="m-proxy-user" placeholder="None">
+                </div>
+                <div class="form-group">
+                    <label>Password (Optional)</label>
+                    <input type="password" class="input-text" id="m-proxy-pass" placeholder="None">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeAddProxyModal()">Cancel</button>
+                <button class="btn success" onclick="submitCustomProxy()">✓ Add & Test Proxy</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=3.0.0"></script>
+</body>
+</html>
