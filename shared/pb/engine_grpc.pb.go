@@ -44,34 +44,34 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ═══════════════════════════════════════════════════════════
-// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ProxyEngine — gRPC Service between Engine.exe and Client.exe
 // ═══════════════════════════════════════════════════════════
 type ProxyEngineClient interface {
-	// ── الاتصال والقطع ──
+	// ── Connection Lifecycle ──
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
 	Disconnect(ctx context.Context, in *DisconnectRequest, opts ...grpc.CallOption) (*DisconnectResponse, error)
-	// ── البروكسي النشط ──
+	// ── Active Proxy & Streams ──
 	GetActiveProxy(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProxyInfo, error)
 	StreamProxyUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProxyUpdate], error)
-	// ── المناطق ──
+	// ── Regions ──
 	GetRegions(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RegionsResponse, error)
-	// ── الحالة ──
+	// ── Status & Pool ──
 	GetEngineStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*EngineStatus, error)
 	GetPoolSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PoolSummary, error)
 	GetProxies(ctx context.Context, in *GetProxiesRequest, opts ...grpc.CallOption) (*ProxiesResponse, error)
-	// ── الاستهلاك ──
+	// ── Usage Tracking ──
 	ReportUsage(ctx context.Context, in *UsageReport, opts ...grpc.CallOption) (*UsageResponse, error)
 	// ── AdBlock ──
 	GetBlockStats(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BlockStats, error)
 	ToggleAdBlock(ctx context.Context, in *ToggleRequest, opts ...grpc.CallOption) (*ToggleResponse, error)
 	CheckDomain(ctx context.Context, in *DomainCheckRequest, opts ...grpc.CallOption) (*DomainCheckResponse, error)
-	// ── المصادقة ──
+	// ── Authentication ──
 	Authenticate(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	RefreshToken(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-	// ── الإعدادات ──
+	// ── Settings ──
 	GetConfig(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConfigResponse, error)
 	UpdateConfig(ctx context.Context, in *ConfigUpdateRequest, opts ...grpc.CallOption) (*ConfigResponse, error)
-	// ── التحليلات ──
+	// ── Analytics ──
 	GetAnalyticsSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AnalyticsSummary, error)
 	GetTopProxies(ctx context.Context, in *TopProxiesRequest, opts ...grpc.CallOption) (*TopProxiesResponse, error)
 }
@@ -278,34 +278,34 @@ func (c *proxyEngineClient) GetTopProxies(ctx context.Context, in *TopProxiesReq
 // for forward compatibility.
 //
 // ═══════════════════════════════════════════════════════════
-// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ProxyEngine — gRPC Service between Engine.exe and Client.exe
 // ═══════════════════════════════════════════════════════════
 type ProxyEngineServer interface {
-	// ── الاتصال والقطع ──
+	// ── Connection Lifecycle ──
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	Disconnect(context.Context, *DisconnectRequest) (*DisconnectResponse, error)
-	// ── البروكسي النشط ──
+	// ── Active Proxy & Streams ──
 	GetActiveProxy(context.Context, *Empty) (*ProxyInfo, error)
 	StreamProxyUpdates(*Empty, grpc.ServerStreamingServer[ProxyUpdate]) error
-	// ── المناطق ──
+	// ── Regions ──
 	GetRegions(context.Context, *Empty) (*RegionsResponse, error)
-	// ── الحالة ──
+	// ── Status & Pool ──
 	GetEngineStatus(context.Context, *Empty) (*EngineStatus, error)
 	GetPoolSummary(context.Context, *Empty) (*PoolSummary, error)
 	GetProxies(context.Context, *GetProxiesRequest) (*ProxiesResponse, error)
-	// ── الاستهلاك ──
+	// ── Usage Tracking ──
 	ReportUsage(context.Context, *UsageReport) (*UsageResponse, error)
 	// ── AdBlock ──
 	GetBlockStats(context.Context, *Empty) (*BlockStats, error)
 	ToggleAdBlock(context.Context, *ToggleRequest) (*ToggleResponse, error)
 	CheckDomain(context.Context, *DomainCheckRequest) (*DomainCheckResponse, error)
-	// ── المصادقة ──
+	// ── Authentication ──
 	Authenticate(context.Context, *AuthRequest) (*AuthResponse, error)
 	RefreshToken(context.Context, *RefreshRequest) (*AuthResponse, error)
-	// ── الإعدادات ──
+	// ── Settings ──
 	GetConfig(context.Context, *Empty) (*ConfigResponse, error)
 	UpdateConfig(context.Context, *ConfigUpdateRequest) (*ConfigResponse, error)
-	// ── التحليلات ──
+	// ── Analytics ──
 	GetAnalyticsSummary(context.Context, *Empty) (*AnalyticsSummary, error)
 	GetTopProxies(context.Context, *TopProxiesRequest) (*TopProxiesResponse, error)
 	mustEmbedUnimplementedProxyEngineServer()

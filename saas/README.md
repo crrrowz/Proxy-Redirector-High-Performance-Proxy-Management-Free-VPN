@@ -1,6 +1,6 @@
 # 🌐 Proxy Redirector — SaaS Cloud Backend & Static IP Orchestrator
 
-> منصة سحابية متقدمة ومكتملة مبنية بلغة **Node.js و TypeScript** لإدارة اشتراكات البروكسيات، المصادقة المركزية، خوادم التوجيه (Relays)، قياس استهلاك الباندويث الفوري، وإدارة البروكسيات الثابتة المخصصة (Dedicated Static IPs).
+> Production-grade cloud backend and orchestrator built with **Node.js 20+ & TypeScript** for proxy subscriptions, central authentication, multi-region relays, real-time bandwidth metering, and dedicated 1:1 static residential/datacenter IP leasing.
 
 ![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)

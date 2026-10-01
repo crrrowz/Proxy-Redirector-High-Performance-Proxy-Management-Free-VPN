@@ -37,10 +37,6 @@ const (
 	ProxyEngine_UpdateConfig_FullMethodName        = "/engine.v1.ProxyEngine/UpdateConfig"
 	ProxyEngine_GetAnalyticsSummary_FullMethodName = "/engine.v1.ProxyEngine/GetAnalyticsSummary"
 	ProxyEngine_GetTopProxies_FullMethodName       = "/engine.v1.ProxyEngine/GetTopProxies"
-	ProxyEngine_GetRotationStatus_FullMethodName   = "/engine.v1.ProxyEngine/GetRotationStatus"
-	ProxyEngine_GetRotationPool_FullMethodName     = "/engine.v1.ProxyEngine/GetRotationPool"
-	ProxyEngine_EnableRotation_FullMethodName      = "/engine.v1.ProxyEngine/EnableRotation"
-	ProxyEngine_DisableRotation_FullMethodName     = "/engine.v1.ProxyEngine/DisableRotation"
 )
 
 // ProxyEngineClient is the client API for ProxyEngine service.
@@ -48,41 +44,36 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ═══════════════════════════════════════════════════════════
-// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ProxyEngine — gRPC Service between Engine.exe and Client.exe
 // ═══════════════════════════════════════════════════════════
 type ProxyEngineClient interface {
-	// ── الاتصال والقطع ──
+	// ── Connection Lifecycle ──
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
 	Disconnect(ctx context.Context, in *DisconnectRequest, opts ...grpc.CallOption) (*DisconnectResponse, error)
-	// ── البروكسي النشط ──
+	// ── Active Proxy & Streams ──
 	GetActiveProxy(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProxyInfo, error)
 	StreamProxyUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProxyUpdate], error)
-	// ── المناطق ──
+	// ── Regions ──
 	GetRegions(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RegionsResponse, error)
-	// ── الحالة ──
+	// ── Status & Pool ──
 	GetEngineStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*EngineStatus, error)
 	GetPoolSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PoolSummary, error)
 	GetProxies(ctx context.Context, in *GetProxiesRequest, opts ...grpc.CallOption) (*ProxiesResponse, error)
-	// ── الاستهلاك ──
+	// ── Usage Tracking ──
 	ReportUsage(ctx context.Context, in *UsageReport, opts ...grpc.CallOption) (*UsageResponse, error)
 	// ── AdBlock ──
 	GetBlockStats(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BlockStats, error)
 	ToggleAdBlock(ctx context.Context, in *ToggleRequest, opts ...grpc.CallOption) (*ToggleResponse, error)
 	CheckDomain(ctx context.Context, in *DomainCheckRequest, opts ...grpc.CallOption) (*DomainCheckResponse, error)
-	// ── المصادقة ──
+	// ── Authentication ──
 	Authenticate(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	RefreshToken(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-	// ── الإعدادات ──
+	// ── Settings ──
 	GetConfig(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConfigResponse, error)
 	UpdateConfig(ctx context.Context, in *ConfigUpdateRequest, opts ...grpc.CallOption) (*ConfigResponse, error)
-	// ── التحليلات ──
+	// ── Analytics ──
 	GetAnalyticsSummary(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AnalyticsSummary, error)
 	GetTopProxies(ctx context.Context, in *TopProxiesRequest, opts ...grpc.CallOption) (*TopProxiesResponse, error)
-	// ── التبديل الديناميكي (Rotation) ──
-	GetRotationStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RotationStatus, error)
-	GetRotationPool(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RotationPoolResponse, error)
-	EnableRotation(ctx context.Context, in *RotationConfig, opts ...grpc.CallOption) (*Empty, error)
-	DisableRotation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type proxyEngineClient struct {
@@ -282,86 +273,41 @@ func (c *proxyEngineClient) GetTopProxies(ctx context.Context, in *TopProxiesReq
 	return out, nil
 }
 
-func (c *proxyEngineClient) GetRotationStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RotationStatus, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RotationStatus)
-	err := c.cc.Invoke(ctx, ProxyEngine_GetRotationStatus_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *proxyEngineClient) GetRotationPool(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RotationPoolResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RotationPoolResponse)
-	err := c.cc.Invoke(ctx, ProxyEngine_GetRotationPool_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *proxyEngineClient) EnableRotation(ctx context.Context, in *RotationConfig, opts ...grpc.CallOption) (*Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, ProxyEngine_EnableRotation_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *proxyEngineClient) DisableRotation(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, ProxyEngine_DisableRotation_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ProxyEngineServer is the server API for ProxyEngine service.
 // All implementations must embed UnimplementedProxyEngineServer
 // for forward compatibility.
 //
 // ═══════════════════════════════════════════════════════════
-// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ProxyEngine — gRPC Service between Engine.exe and Client.exe
 // ═══════════════════════════════════════════════════════════
 type ProxyEngineServer interface {
-	// ── الاتصال والقطع ──
+	// ── Connection Lifecycle ──
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	Disconnect(context.Context, *DisconnectRequest) (*DisconnectResponse, error)
-	// ── البروكسي النشط ──
+	// ── Active Proxy & Streams ──
 	GetActiveProxy(context.Context, *Empty) (*ProxyInfo, error)
 	StreamProxyUpdates(*Empty, grpc.ServerStreamingServer[ProxyUpdate]) error
-	// ── المناطق ──
+	// ── Regions ──
 	GetRegions(context.Context, *Empty) (*RegionsResponse, error)
-	// ── الحالة ──
+	// ── Status & Pool ──
 	GetEngineStatus(context.Context, *Empty) (*EngineStatus, error)
 	GetPoolSummary(context.Context, *Empty) (*PoolSummary, error)
 	GetProxies(context.Context, *GetProxiesRequest) (*ProxiesResponse, error)
-	// ── الاستهلاك ──
+	// ── Usage Tracking ──
 	ReportUsage(context.Context, *UsageReport) (*UsageResponse, error)
 	// ── AdBlock ──
 	GetBlockStats(context.Context, *Empty) (*BlockStats, error)
 	ToggleAdBlock(context.Context, *ToggleRequest) (*ToggleResponse, error)
 	CheckDomain(context.Context, *DomainCheckRequest) (*DomainCheckResponse, error)
-	// ── المصادقة ──
+	// ── Authentication ──
 	Authenticate(context.Context, *AuthRequest) (*AuthResponse, error)
 	RefreshToken(context.Context, *RefreshRequest) (*AuthResponse, error)
-	// ── الإعدادات ──
+	// ── Settings ──
 	GetConfig(context.Context, *Empty) (*ConfigResponse, error)
 	UpdateConfig(context.Context, *ConfigUpdateRequest) (*ConfigResponse, error)
-	// ── التحليلات ──
+	// ── Analytics ──
 	GetAnalyticsSummary(context.Context, *Empty) (*AnalyticsSummary, error)
 	GetTopProxies(context.Context, *TopProxiesRequest) (*TopProxiesResponse, error)
-	// ── التبديل الديناميكي (Rotation) ──
-	GetRotationStatus(context.Context, *Empty) (*RotationStatus, error)
-	GetRotationPool(context.Context, *Empty) (*RotationPoolResponse, error)
-	EnableRotation(context.Context, *RotationConfig) (*Empty, error)
-	DisableRotation(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedProxyEngineServer()
 }
 
@@ -425,18 +371,6 @@ func (UnimplementedProxyEngineServer) GetAnalyticsSummary(context.Context, *Empt
 }
 func (UnimplementedProxyEngineServer) GetTopProxies(context.Context, *TopProxiesRequest) (*TopProxiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTopProxies not implemented")
-}
-func (UnimplementedProxyEngineServer) GetRotationStatus(context.Context, *Empty) (*RotationStatus, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRotationStatus not implemented")
-}
-func (UnimplementedProxyEngineServer) GetRotationPool(context.Context, *Empty) (*RotationPoolResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRotationPool not implemented")
-}
-func (UnimplementedProxyEngineServer) EnableRotation(context.Context, *RotationConfig) (*Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method EnableRotation not implemented")
-}
-func (UnimplementedProxyEngineServer) DisableRotation(context.Context, *Empty) (*Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method DisableRotation not implemented")
 }
 func (UnimplementedProxyEngineServer) mustEmbedUnimplementedProxyEngineServer() {}
 func (UnimplementedProxyEngineServer) testEmbeddedByValue()                     {}
@@ -776,78 +710,6 @@ func _ProxyEngine_GetTopProxies_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProxyEngine_GetRotationStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProxyEngineServer).GetRotationStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProxyEngine_GetRotationStatus_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProxyEngineServer).GetRotationStatus(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ProxyEngine_GetRotationPool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProxyEngineServer).GetRotationPool(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProxyEngine_GetRotationPool_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProxyEngineServer).GetRotationPool(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ProxyEngine_EnableRotation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RotationConfig)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProxyEngineServer).EnableRotation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProxyEngine_EnableRotation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProxyEngineServer).EnableRotation(ctx, req.(*RotationConfig))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ProxyEngine_DisableRotation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProxyEngineServer).DisableRotation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ProxyEngine_DisableRotation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProxyEngineServer).DisableRotation(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ProxyEngine_ServiceDesc is the grpc.ServiceDesc for ProxyEngine service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -922,22 +784,6 @@ var ProxyEngine_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTopProxies",
 			Handler:    _ProxyEngine_GetTopProxies_Handler,
-		},
-		{
-			MethodName: "GetRotationStatus",
-			Handler:    _ProxyEngine_GetRotationStatus_Handler,
-		},
-		{
-			MethodName: "GetRotationPool",
-			Handler:    _ProxyEngine_GetRotationPool_Handler,
-		},
-		{
-			MethodName: "EnableRotation",
-			Handler:    _ProxyEngine_EnableRotation_Handler,
-		},
-		{
-			MethodName: "DisableRotation",
-			Handler:    _ProxyEngine_DisableRotation_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

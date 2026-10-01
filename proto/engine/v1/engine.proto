@@ -7,26 +7,26 @@ option go_package = "./;pb";
 import "google/protobuf/timestamp.proto";
 
 // ═══════════════════════════════════════════════════════════
-// ProxyEngine — gRPC service بين Engine.exe و Client.exe
+// ProxyEngine — gRPC Service between Engine.exe and Client.exe
 // ═══════════════════════════════════════════════════════════
 service ProxyEngine {
-  // ── الاتصال والقطع ──
+  // ── Connection Lifecycle ──
   rpc Connect(ConnectRequest) returns (ConnectResponse);
   rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
 
-  // ── البروكسي النشط ──
+  // ── Active Proxy & Streams ──
   rpc GetActiveProxy(Empty) returns (ProxyInfo);
   rpc StreamProxyUpdates(Empty) returns (stream ProxyUpdate);
 
-  // ── المناطق ──
+  // ── Regions ──
   rpc GetRegions(Empty) returns (RegionsResponse);
 
-  // ── الحالة ──
+  // ── Status & Pool ──
   rpc GetEngineStatus(Empty) returns (EngineStatus);
   rpc GetPoolSummary(Empty) returns (PoolSummary);
   rpc GetProxies(GetProxiesRequest) returns (ProxiesResponse);
 
-  // ── الاستهلاك ──
+  // ── Usage Tracking ──
   rpc ReportUsage(UsageReport) returns (UsageResponse);
 
   // ── AdBlock ──
@@ -34,19 +34,19 @@ service ProxyEngine {
   rpc ToggleAdBlock(ToggleRequest) returns (ToggleResponse);
   rpc CheckDomain(DomainCheckRequest) returns (DomainCheckResponse);
 
-  // ── المصادقة ──
+  // ── Authentication ──
   rpc Authenticate(AuthRequest) returns (AuthResponse);
   rpc RefreshToken(RefreshRequest) returns (AuthResponse);
 
-  // ── الإعدادات ──
+  // ── Settings ──
   rpc GetConfig(Empty) returns (ConfigResponse);
   rpc UpdateConfig(ConfigUpdateRequest) returns (ConfigResponse);
 
-  // ── التحليلات ──
+  // ── Analytics ──
   rpc GetAnalyticsSummary(Empty) returns (AnalyticsSummary);
   rpc GetTopProxies(TopProxiesRequest) returns (TopProxiesResponse);
 
-  // ── التبديل الديناميكي (Rotation) ──
+  // ── Surge Dynamic Rotation ──
   rpc GetRotationStatus(Empty) returns (RotationStatus);
   rpc GetRotationPool(Empty) returns (RotationPoolResponse);
   rpc EnableRotation(RotationConfig) returns (Empty);
