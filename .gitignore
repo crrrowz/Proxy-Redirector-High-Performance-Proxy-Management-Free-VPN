@@ -34,3 +34,6 @@ data/traffic_log.json
 # Logs & History
 *.log
 PowerShellHistory.txt
+
+# Graft architecture cache
+graft/
