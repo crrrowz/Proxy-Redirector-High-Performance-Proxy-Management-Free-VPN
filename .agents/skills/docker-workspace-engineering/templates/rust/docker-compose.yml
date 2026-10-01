@@ -1,0 +1,55 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: app-dev
+    restart: unless-stopped
+    working_dir: /workspace/app
+    volumes:
+      - .:/workspace/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git-cache:/usr/local/cargo/git
+      - target-isolation:/workspace/app/target
+    env_file:
+      - path: .env
+        required: false
+    stdin_open: true
+    tty: true
+
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    working_dir: /workspace/app
+    volumes:
+      - .:/workspace/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git-cache:/usr/local/cargo/git
+      - target-isolation:/workspace/app/target
+    env_file:
+      - path: .env
+        required: false
+    entrypoint: ["cargo"]
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    working_dir: /workspace/app
+    volumes:
+      - .:/workspace/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git-cache:/usr/local/cargo/git
+      - target-isolation:/workspace/app/target
+    env_file:
+      - path: .env
+        required: false
+
+volumes:
+  cargo-cache:
+  cargo-git-cache:
+  target-isolation:

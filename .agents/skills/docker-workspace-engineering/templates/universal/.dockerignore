@@ -1,0 +1,57 @@
+# ==============================================================================
+# Docker Build Context Exclusion Specification
+# ==============================================================================
+
+# 1. Host Virtual Environments & Package Stores (Prevents host binary contamination)
+.venv/
+venv/
+ENV/
+env/
+node_modules/
+.pnpm-store/
+target/
+
+# 2. VCS & IDE Metadata
+.git/
+.gitignore
+.idea/
+.vscode/
+PowerShellHistory.txt
+*.swp
+*.swo
+
+# 3. Runtime Outputs & Bytecode Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.next/
+.turbo/
+.wxt/
+.output/
+
+# 4. Build Artifacts & Logs
+dist/
+build/
+*.egg-info/
+*.log
+*.zip
+*.xpi
+*.tar.gz
+*.tgz
+
+# 5. Secrets & Local Environments
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# 6. Operating System Files
+.DS_Store
+Thumbs.db

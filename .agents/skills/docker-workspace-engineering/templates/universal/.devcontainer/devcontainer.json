@@ -1,0 +1,18 @@
+{
+  "name": "Dockerized Development Workspace",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "development"
+  },
+  "workspaceFolder": "/workspace/app",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/app,type=bind",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "remoteUser": "root"
+}

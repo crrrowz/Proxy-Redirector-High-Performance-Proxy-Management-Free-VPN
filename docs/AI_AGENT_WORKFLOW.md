@@ -186,7 +186,7 @@ Before finalizing changes, execute the Zero-Tolerance Security Scan:
 
 ## 7. Stage 7: Documentation Synchronization & Git Commit
 
-> **Skill Required**: `documentation-sync`
+> **Skill Required**: `documentation-sync` (`.agents/skills/documentation-sync/SKILL.md`)
 
 1. **Language Check**: Ensure 100% English across all files, code comments, and documentation.
 2. **Update `CHANGELOG.md`**: Add structured entries under the current release header (`Added`, `Changed`, `Fixed`, `Security`).
@@ -196,3 +196,24 @@ Before finalizing changes, execute the Zero-Tolerance Security Scan:
    git add -A
    git commit -m "feat(module): concise technical description in English"
    ```
+
+---
+
+## 8. Embedded Repository Skills Directory (`.agents/skills/`)
+
+To ensure any AI agent (Antigravity, Kilo CLI, Cursor, Claude Code, GitHub Copilot Workspace) operating on this repository has immediate access to the full engineering skill specifications without external dependencies, all canonical skill definitions are bundled directly in `.agents/skills/`:
+
+| Skill Name | Location in Repository | Purpose |
+| :--- | :--- | :--- |
+| **`graft-architecture-intelligence`** | `.agents/skills/graft-architecture-intelligence/SKILL.md` | Zero-token AST orientation, symbol lookup, and caller tracing. |
+| **`architectural-decomposition`** | `.agents/skills/architectural-decomposition/SKILL.md` | Transforming requirements into formal DAGs and `PLAN.md` specs. |
+| **`guarding-architecture`** | `.agents/skills/guarding-architecture/SKILL.md` | Structural invariants and cross-boundary interface contracts. |
+| **`docker-containerization`** | `.agents/skills/docker-containerization/SKILL.md` | Hardened multi-stage Docker builds and non-root execution. |
+| **`docker-workspace-engineering`** | `.agents/skills/docker-workspace-engineering/SKILL.md` | Universal container dev environments and isolated test runners. |
+| **`api-design-guide`** | `.agents/skills/api-design-guide/SKILL.md` | REST resource modeling, HTTP semantics, and RFC 7807 error envelopes. |
+| **`api-contract-audit`** | `.agents/skills/api-contract-audit/SKILL.md` | Forensic API drift detection and contract verification. |
+| **`code-review`** | `.agents/skills/code-review/SKILL.md` | Zero-tolerance security scanning (injection, traversal, secrets). |
+| **`systematic-debugging`** | `.agents/skills/systematic-debugging/SKILL.md` | Root-cause failure analysis and regression protection. |
+| **`documentation-sync`** | `.agents/skills/documentation-sync/SKILL.md` | Continuous documentation-code synchronization protocol. |
+| **`system-unification-audit`** | `.agents/skills/system-unification-audit/SKILL.md` | Single-responsibility, zero-duplicate codebase consolidation. |
+
