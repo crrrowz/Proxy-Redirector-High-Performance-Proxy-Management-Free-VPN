@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/crrrowz/proxy-redirector-v3/client/internal/engine/pb"
+	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 	"github.com/crrrowz/proxy-redirector-v3/shared/models"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
-	"github.com/crrrowz/proxy-redirector-v3/client/internal/engine/pb"
 	"github.com/crrrowz/proxy-redirector-v3/shared/models"
+	"github.com/crrrowz/proxy-redirector-v3/shared/pb"
 )
 
 func (c *Core) GetRotationStatus() (*pb.RotationStatus, error) {

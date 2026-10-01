@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/config"
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/core"
@@ -13,8 +16,7 @@ import (
 // Execute routes CLI subcommands
 func Execute(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		printHelp()
-		return nil
+		return runInteractiveMenu(ctx)
 	}
 
 	cmd := args[0]
@@ -49,6 +51,56 @@ func Execute(ctx context.Context, args []string) error {
 
 	default:
 		return fmt.Errorf("unknown command: %s (run 'proxy-cli help' for usage)", cmd)
+	}
+}
+
+func runInteractiveMenu(ctx context.Context) error {
+	for {
+		fmt.Println("\n========================================================")
+		fmt.Println(" 🔀 PROXY REDIRECTOR CLI — Interactive Control Console")
+		fmt.Println("========================================================")
+		fmt.Println(" 1. 📊 Status   — View live engine status & active proxy")
+		fmt.Println(" 2. 🚀 Start    — Start local proxy relays (SOCKS5/HTTP)")
+		fmt.Println(" 3. ⚡ Rotate   — Force switch active proxy (Failover)")
+		fmt.Println(" 4. 🏊 Pool     — List available proxies in the pool")
+		fmt.Println(" 5. 🛡️  AdBlock  — View AdBlocker stats & check domains")
+		fmt.Println(" 6. ⚙️  Config   — View engine configuration settings")
+		fmt.Println(" 7. ❓ Help     — Show command line arguments help")
+		fmt.Println(" 0. 🛑 Exit")
+		fmt.Println("========================================================")
+		fmt.Print(" Select an option [0-7]: ")
+
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return nil
+		}
+		choice := strings.TrimSpace(input)
+
+		switch choice {
+		case "1":
+			_ = runStatus(ctx, nil)
+		case "2":
+			return runStart(ctx, nil)
+		case "3":
+			_ = runRotate(ctx, []string{"--force"})
+		case "4":
+			_ = runPool(ctx, []string{"--limit", "15"})
+		case "5":
+			_ = runAdBlock(ctx, nil)
+		case "6":
+			_ = runConfig(ctx, nil)
+		case "7":
+			printHelp()
+		case "0", "exit", "quit", "q":
+			fmt.Println("Exiting CLI. Goodbye!")
+			return nil
+		default:
+			fmt.Println("Invalid choice, please select 0 to 7.")
+		}
+
+		fmt.Print("\nPress Enter to return to menu...")
+		_, _ = reader.ReadString('\n')
 	}
 }
 
