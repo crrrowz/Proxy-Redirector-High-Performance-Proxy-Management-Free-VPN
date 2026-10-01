@@ -174,6 +174,7 @@ npm run dev
 
 | Document | Purpose |
 | :--- | :--- |
+| **[AI Agent Protocol](docs/AI_AGENT_WORKFLOW.md)** | Step-by-step SOP for AI coding agents (Graft, Docker, Go, Node.js). |
 | **[Master Architecture](docs/architecture/ARCHITECTURE.md)** | Authoritative system architecture, data flow, and structural invariants. |
 | **[Master Plan](docs/plans/MASTER_PLAN.md)** | Master engineering decomposition plan and legacy parity matrix. |
 | **[Progress History](docs/reports/PROGRESS.md)** | Milestone execution history and verification records. |

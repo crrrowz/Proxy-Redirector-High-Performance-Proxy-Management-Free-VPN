@@ -9,6 +9,7 @@ Welcome to the canonical documentation for **Proxy Redirector & Free VPN**. This
 ```text
 docs/
 ├── README.md                      # Documentation Index (This Document)
+├── AI_AGENT_WORKFLOW.md           # SOP Protocol for Autonomous AI Coding Agents
 ├── BUILD_GUIDE.md                 # Multi-Platform Build & Packaging Guide
 ├── SUPABASE_SETUP.md              # Self-Hosted Supabase Docker Setup Guide
 ├── RELAY_DEPLOYMENT_GUIDE.md      # Multi-Region VPS Relay Deployment Playbook
