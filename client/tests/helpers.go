@@ -10,7 +10,7 @@ import (
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/engine"
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/proxy"
 	"github.com/crrrowz/proxy-redirector-v3/client/tests/mock"
-	pb "github.com/crrrowz/proxy-redirector-v3/client/internal/engine/pb"
+	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

@@ -55,6 +55,16 @@ func Execute(ctx context.Context, args []string) error {
 }
 
 func runInteractiveMenu(ctx context.Context) error {
+	// Authenticate and verify connection immediately before showing menu
+	client, err := ConnectGRPC(ctx, "", "")
+	if err != nil {
+		fmt.Printf("❌ Failed to connect to Engine: %v\n", err)
+		return err
+	}
+	if client != nil {
+		client.Disconnect()
+	}
+
 	for {
 		fmt.Println("\n========================================================")
 		fmt.Println(" 🔀 PROXY REDIRECTOR CLI — Interactive Control Console")
@@ -79,17 +89,30 @@ func runInteractiveMenu(ctx context.Context) error {
 
 		switch choice {
 		case "1":
-			_ = runStatus(ctx, nil)
+			if err := runStatus(ctx, nil); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
 		case "2":
-			return runStart(ctx, nil)
+			if err := runStart(ctx, nil); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
+			return nil
 		case "3":
-			_ = runRotate(ctx, []string{"--force"})
+			if err := runRotate(ctx, []string{"--force"}); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
 		case "4":
-			_ = runPool(ctx, []string{"--limit", "15"})
+			if err := runPool(ctx, []string{"--limit", "15"}); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
 		case "5":
-			_ = runAdBlock(ctx, nil)
+			if err := runAdBlock(ctx, nil); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
 		case "6":
-			_ = runConfig(ctx, nil)
+			if err := runConfig(ctx, nil); err != nil {
+				fmt.Printf("\n❌ %v\n", err)
+			}
 		case "7":
 			printHelp()
 		case "0", "exit", "quit", "q":
@@ -123,29 +146,103 @@ Available Commands:
 Use "proxy-cli <command> -h" for more information about a command.`)
 }
 
-// helper to initialize Core and gRPC client
-func initCore(ctx context.Context, engineAddr, authUser, authPass string, socksPort, httpPort int) (*core.Core, error) {
-	if engineAddr == "" {
-		engineAddr = "127.0.0.1:50051"
+// helper to prompt for API Key interactively when missing or wrong
+func promptForAPIKey(reader *bufio.Reader) string {
+	fmt.Print("\n🔑 Enter Engine API Key (pk_live_...): ")
+	key, _ := reader.ReadString('\n')
+	key = strings.TrimSpace(key)
+	if key != "" {
+		cfg := config.LoadConfig()
+		cfg.APIKey = key
+		_ = cfg.Save()
+		fmt.Println("✅ API Key saved to local settings.")
 	}
+	return key
+}
+
+// ConnectGRPC connects to the engine and prompts interactively if the API key is missing or invalid.
+func ConnectGRPC(ctx context.Context, engineAddr, apiKey string) (*engine.GRPCClient, error) {
+	savedCfg := config.LoadConfig()
+
+	if engineAddr == "" {
+		if envAddr := os.Getenv("PROXY_ENGINE_ADDR"); envAddr != "" {
+			engineAddr = envAddr
+		} else if savedCfg.EngineAddress != "" {
+			engineAddr = savedCfg.EngineAddress
+		} else {
+			engineAddr = "127.0.0.1:50051"
+		}
+	}
+	if apiKey == "" {
+		if envKey := os.Getenv("PROXY_ENGINE_KEY"); envKey != "" {
+			apiKey = envKey
+		} else if savedCfg.APIKey != "" {
+			apiKey = savedCfg.APIKey
+		}
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	for apiKey == "" {
+		apiKey = promptForAPIKey(reader)
+	}
+
+	client := engine.NewGRPCClientWithKey(engineAddr, apiKey)
+	if err := client.Connect(ctx); err != nil {
+		if strings.Contains(err.Error(), "authentication failed") || strings.Contains(err.Error(), "Unauthenticated") {
+			fmt.Println("\n❌ Invalid or expired API Key.")
+			newKey := promptForAPIKey(reader)
+			if newKey != "" {
+				client.SetAPIKey(newKey)
+				if retryErr := client.Connect(ctx); retryErr != nil {
+					return nil, retryErr
+				}
+				return client, nil
+			}
+		}
+		return nil, err
+	}
+	return client, nil
+}
+
+// helper to initialize Core and gRPC client
+func initCore(ctx context.Context, engineAddr, apiKey string, socksPort, httpPort int) (*core.Core, error) {
+	savedCfg := config.LoadConfig()
+
+	if engineAddr == "" {
+		if envAddr := os.Getenv("PROXY_ENGINE_ADDR"); envAddr != "" {
+			engineAddr = envAddr
+		} else if savedCfg.EngineAddress != "" {
+			engineAddr = savedCfg.EngineAddress
+		} else {
+			engineAddr = "127.0.0.1:50051"
+		}
+	}
+
+	grpcClient, err := ConnectGRPC(ctx, engineAddr, apiKey)
+	if err != nil {
+		return nil, err
+	}
+
 	if socksPort <= 0 {
-		socksPort = 1080
+		if savedCfg.SOCKS5Port > 0 {
+			socksPort = savedCfg.SOCKS5Port
+		} else {
+			socksPort = 1080
+		}
 	}
 	if httpPort <= 0 {
-		httpPort = 8080
+		if savedCfg.HTTPPort > 0 {
+			httpPort = savedCfg.HTTPPort
+		} else {
+			httpPort = 8080
+		}
 	}
 
 	cfg := &config.Config{
 		EngineAddress: engineAddr,
+		APIKey:        savedCfg.APIKey,
 		SOCKS5Port:    socksPort,
 		HTTPPort:      httpPort,
-		AuthUsername:  authUser,
-		AuthPassword:  authPass,
-	}
-
-	grpcClient := engine.NewGRPCClient(engineAddr, authUser, authPass)
-	if err := grpcClient.Connect(ctx); err != nil {
-		return nil, fmt.Errorf("failed to connect to engine at %s: %w", engineAddr, err)
 	}
 
 	tracker := proxy.NewClientTracker()

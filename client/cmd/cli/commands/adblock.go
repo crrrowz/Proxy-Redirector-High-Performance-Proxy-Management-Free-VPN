@@ -4,15 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
-	"github.com/crrrowz/proxy-redirector-v3/client/internal/engine"
 )
 
 func runAdBlock(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("adblock", flag.ExitOnError)
-	engineAddr := fs.String("engine", "127.0.0.1:50051", "Engine gRPC server address")
-	authUser := fs.String("user", "", "Engine gRPC auth username")
-	authPass := fs.String("password", "", "Engine gRPC auth password")
+	engineAddr := fs.String("engine", "", "Engine gRPC server address")
+	apiKey := fs.String("key", "", "Engine API Key (pk_live_...)")
 	enable := fs.Bool("enable", false, "Enable ad and tracker blocking")
 	disable := fs.Bool("disable", false, "Disable ad and tracker blocking")
 	check := fs.String("check", "", "Check if a domain is blocked (e.g. googleads.g.doubleclick.net)")
@@ -21,9 +18,9 @@ func runAdBlock(ctx context.Context, args []string) error {
 		return err
 	}
 
-	grpcClient := engine.NewGRPCClient(*engineAddr, *authUser, *authPass)
-	if err := grpcClient.Connect(ctx); err != nil {
-		return fmt.Errorf("failed to connect to engine: %w", err)
+	grpcClient, err := ConnectGRPC(ctx, *engineAddr, *apiKey)
+	if err != nil {
+		return err
 	}
 	defer grpcClient.Disconnect()
 

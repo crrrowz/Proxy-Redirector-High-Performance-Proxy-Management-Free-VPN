@@ -50,22 +50,15 @@ services:
       supabase-db:
         condition: service_healthy
 
-  # ── 4. Supabase Studio Web UI Dashboard ──
-  supabase-studio:
-    image: supabase/studio:latest
-    container_name: supabase-studio
+  # ── 4. Adminer Web Database Inspector ──
+  adminer:
+    image: adminer:latest
+    container_name: supabase-adminer
     restart: unless-stopped
     ports:
-      - "8000:3000"
+      - "8085:8080"
     environment:
-      STUDIO_PG_META_URL: http://supabase-meta:8080
-      POSTGRES_PASSWORD: postgrespassword123
-      DEFAULT_ORGANIZATION_NAME: "Proxy Redirector"
-      DEFAULT_PROJECT_NAME: "SaaS Cloud"
-      SUPABASE_URL: http://supabase-kong:8000
-      SUPABASE_PUBLIC_URL: http://localhost:54321
-      SUPABASE_ANON_KEY: anon-key-placeholder
-      SUPABASE_SERVICE_KEY: service-role-key-placeholder
+      ADMINER_DEFAULT_SERVER: supabase-db
     depends_on:
       supabase-db:
         condition: service_healthy

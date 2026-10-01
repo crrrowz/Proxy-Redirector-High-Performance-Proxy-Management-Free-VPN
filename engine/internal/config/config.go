@@ -36,6 +36,7 @@ type Config struct {
 	AuthEnabled   bool     `json:"AUTH_ENABLED"`
 	AuthUsername  string   `json:"AUTH_USERNAME"`
 	AuthPassword  string   `json:"AUTH_PASSWORD"`
+	APIKey        string   `json:"API_KEY"`
 	AuthWhitelist []string `json:"AUTH_WHITELIST"`
 
 	// Scoring

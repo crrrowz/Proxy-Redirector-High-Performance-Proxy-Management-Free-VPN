@@ -4,48 +4,58 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 	"github.com/crrrowz/proxy-redirector-v3/shared/models"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"encoding/base64"
+	"google.golang.org/grpc/status"
 )
 
-type basicAuth struct {
-	username string
-	password string
+type apiKeyAuth struct {
+	apiKey string
 }
 
-func (b basicAuth) GetRequestMetadata(ctx context.Context, in ...string) (map[string]string, error) {
-	auth := b.username + ":" + b.password
-	enc := base64.StdEncoding.EncodeToString([]byte(auth))
-	return map[string]string{
-		"authorization": "Basic " + enc,
-	}, nil
+func (a apiKeyAuth) GetRequestMetadata(ctx context.Context, in ...string) (map[string]string, error) {
+	md := make(map[string]string)
+	if a.apiKey != "" {
+		md["x-api-key"] = a.apiKey
+		md["authorization"] = "Bearer " + a.apiKey
+	}
+	return md, nil
 }
 
-func (basicAuth) RequireTransportSecurity() bool {
+func (apiKeyAuth) RequireTransportSecurity() bool {
 	return false
 }
 
 // GRPCClient manages the connection to the Engine.
 type GRPCClient struct {
-	address  string
-	username string
-	password string
-	Conn     *grpc.ClientConn
-	Client   pb.ProxyEngineClient
+	address string
+	apiKey  string
+	Conn    *grpc.ClientConn
+	Client  pb.ProxyEngineClient
 }
 
-// NewGRPCClient initializes a new gRPC client.
-func NewGRPCClient(address, username, password string) *GRPCClient {
+// NewGRPCClient initializes a new gRPC client with address and API key.
+func NewGRPCClient(address, apiKey, _ string) *GRPCClient {
+	return NewGRPCClientWithKey(address, apiKey)
+}
+
+// NewGRPCClientWithKey initializes a new gRPC client with a direct API key.
+func NewGRPCClientWithKey(address, apiKey string) *GRPCClient {
 	return &GRPCClient{
-		address:  address,
-		username: username,
-		password: password,
+		address: address,
+		apiKey:  strings.TrimSpace(apiKey),
 	}
+}
+
+// SetAPIKey updates the API key for future RPC requests.
+func (c *GRPCClient) SetAPIKey(key string) {
+	c.apiKey = strings.TrimSpace(key)
 }
 
 // Connect establishes the connection to the Engine.
@@ -56,10 +66,9 @@ func (c *GRPCClient) Connect(ctx context.Context) error {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	if c.username != "" || c.password != "" {
-		opts = append(opts, grpc.WithPerRPCCredentials(basicAuth{
-			username: c.username,
-			password: c.password,
+	if c.apiKey != "" {
+		opts = append(opts, grpc.WithPerRPCCredentials(apiKeyAuth{
+			apiKey: c.apiKey,
 		}))
 	}
 
@@ -74,6 +83,10 @@ func (c *GRPCClient) Connect(ctx context.Context) error {
 	// Test the connection
 	_, err = c.Client.Connect(ctx, &pb.ConnectRequest{})
 	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
+			log.Printf("❌ [Client] Authentication failed: %v", st.Message())
+			return fmt.Errorf("authentication failed: %s", st.Message())
+		}
 		log.Printf("[Client] Engine is currently offline. Will auto-connect when it starts.")
 		// Do NOT close the connection. gRPC will automatically reconnect in the background!
 	} else {
@@ -93,11 +106,15 @@ func (c *GRPCClient) Disconnect() {
 }
 
 // Reconnect disconnects and re-establishes the gRPC connection with new parameters.
-func (c *GRPCClient) Reconnect(address, username, password string) error {
+func (c *GRPCClient) Reconnect(address, apiKey string) error {
+	return c.ReconnectWithAuth(address, apiKey, "", "")
+}
+
+// ReconnectWithAuth reconnects with explicit API key.
+func (c *GRPCClient) ReconnectWithAuth(address, apiKey, _, _ string) error {
 	c.Disconnect()
 	c.address = address
-	c.username = username
-	c.password = password
+	c.apiKey = strings.TrimSpace(apiKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return c.Connect(ctx)

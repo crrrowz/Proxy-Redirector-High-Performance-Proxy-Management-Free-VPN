@@ -43,6 +43,7 @@ docs/
 │
 ├── plans/                         # 4. Architecture Decompositions & Roadmaps
 │   ├── MASTER_PLAN.md             # Master Engineering Decomposition & Parity Matrix
+│   ├── CAPABILITY_INTEGRATION_PLAN.md # Blueprint for Advanced Capabilities (Rules, Protocols, DNS, TUN, etc.)
 │   └── ROADMAP_NEXT_PHASE.md      # Future Implementation Stages
 │
 └── reports/                       # 5. Engineering Quality & Audit Reports

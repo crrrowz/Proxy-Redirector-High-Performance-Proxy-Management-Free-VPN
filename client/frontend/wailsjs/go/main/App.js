@@ -62,8 +62,12 @@ export function KickDevice(arg1) {
   return window['go']['main']['App']['KickDevice'](arg1);
 }
 
-export function SaveConfig(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['SaveConfig'](arg1, arg2, arg3, arg4, arg5);
+export function SaveConfig(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveConfig'](arg1, arg2, arg3, arg4);
+}
+
+export function TestConnection(arg1, arg2) {
+  return window['go']['main']['App']['TestConnection'](arg1, arg2);
 }
 
 export function UpdateSettings(arg1, arg2) {

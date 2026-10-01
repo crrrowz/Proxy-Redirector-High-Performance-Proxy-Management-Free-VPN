@@ -35,6 +35,8 @@ export function GetSystemInfo():Promise<metadata.SystemInfo>;
 
 export function KickDevice(arg1:string):Promise<void>;
 
-export function SaveConfig(arg1:string,arg2:number,arg3:number,arg4:string,arg5:string):Promise<void>;
+export function SaveConfig(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+
+export function TestConnection(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateSettings(arg1:any,arg2:any):Promise<void>;

@@ -10,11 +10,10 @@ import (
 
 func runStart(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
-	engineAddr := fs.String("engine", "127.0.0.1:50051", "Engine gRPC server address")
-	authUser := fs.String("user", "", "Engine gRPC auth username")
-	authPass := fs.String("password", "", "Engine gRPC auth password")
-	socksPort := fs.Int("socks-port", 1080, "Local SOCKS5 proxy server port")
-	httpPort := fs.Int("http-port", 8080, "Local HTTP proxy server port")
+	engineAddr := fs.String("engine", "", "Engine gRPC server address (e.g. 127.0.0.1:50051 or vps:50051)")
+	apiKey := fs.String("key", "", "Engine API Key (pk_live_...)")
+	socksPort := fs.Int("socks-port", 0, "Local SOCKS5 proxy server port (default 1080)")
+	httpPort := fs.Int("http-port", 0, "Local HTTP proxy server port (default 8080)")
 	country := fs.String("country", "", "ISO 2-letter country code filter (e.g. US, DE, GLOBAL)")
 	maxSpeed := fs.Int("max-speed", 5000, "Maximum response time threshold in ms")
 	surge := fs.Bool("surge", false, "Enable Surge Mode dynamic rotation immediately")
@@ -25,15 +24,15 @@ func runStart(ctx context.Context, args []string) error {
 		return err
 	}
 
-	c, err := initCore(ctx, *engineAddr, *authUser, *authPass, *socksPort, *httpPort)
+	c, err := initCore(ctx, *engineAddr, *apiKey, *socksPort, *httpPort)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("🚀 Starting Proxy Redirector Client...")
-	fmt.Printf("   Engine: %s\n", *engineAddr)
-	fmt.Printf("   SOCKS5: 0.0.0.0:%d\n", *socksPort)
-	fmt.Printf("   HTTP:   0.0.0.0:%d\n", *httpPort)
+	fmt.Printf("   Engine: %s\n", c.Config.EngineAddress)
+	fmt.Printf("   SOCKS5: 0.0.0.0:%d\n", c.Config.SOCKS5Port)
+	fmt.Printf("   HTTP:   0.0.0.0:%d\n", c.Config.HTTPPort)
 	if *country != "" {
 		fmt.Printf("   Country Filter: %s\n", *country)
 	}

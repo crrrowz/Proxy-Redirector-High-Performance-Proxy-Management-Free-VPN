@@ -9,10 +9,9 @@ import (
 
 type Config struct {
 	EngineAddress string `json:"engine_address"`
+	APIKey        string `json:"api_key"`
 	SOCKS5Port    int    `json:"socks5_port"`
 	HTTPPort      int    `json:"http_port"`
-	AuthUsername   string `json:"auth_username"`
-	AuthPassword   string `json:"auth_password"`
 
 	// internal — path to the settings file
 	mu       sync.RWMutex
@@ -35,10 +34,9 @@ func configDir() string {
 func LoadConfig() *Config {
 	cfg := &Config{
 		EngineAddress: "127.0.0.1:50051",
+		APIKey:        "",
 		SOCKS5Port:    1080,
 		HTTPPort:      8080,
-		AuthUsername:   "",
-		AuthPassword:   "",
 	}
 
 	cfg.filePath = filepath.Join(configDir(), "settings.json")

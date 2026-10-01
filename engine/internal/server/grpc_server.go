@@ -11,6 +11,7 @@ import (
 
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/adblock"
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/config"
+	"github.com/crrrowz/proxy-redirector-v3/engine/internal/database"
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/failover"
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/proxy"
 	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
@@ -30,6 +31,7 @@ type GRPCServer struct {
 	failover     *failover.Handler
 	adblock      *adblock.Engine
 	config       *config.Config
+	db           database.DB
 	grpcSrv      *grpc.Server
 	isRunning    bool
 	mu           sync.RWMutex
@@ -44,12 +46,14 @@ func NewGRPCServer(
 	failover *failover.Handler,
 	adblock *adblock.Engine,
 	cfg *config.Config,
+	db database.DB,
 ) *GRPCServer {
 	return &GRPCServer{
 		manager:    manager,
 		failover:   failover,
 		adblock:    adblock,
 		config:     cfg,
+		db:         db,
 		updateChan: make(chan *pb.ProxyUpdate, 10),
 	}
 }
@@ -121,69 +125,73 @@ func (s *GRPCServer) listenForProxySwitches() {
 	}
 }
 
-func (s *GRPCServer) authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	if !s.config.AuthEnabled {
-		return handler(ctx, req)
-	}
-
+func (s *GRPCServer) validateCredentials(ctx context.Context) error {
 	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "metadata is not provided")
-	}
-
-	values := md["authorization"]
-	if len(values) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "authorization token is not provided")
-	}
-
-	auth := values[0]
-	if !strings.HasPrefix(auth, "Basic ") {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid authorization token format")
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid authorization token")
-	}
-
-	parts := strings.SplitN(string(decoded), ":", 2)
-	if len(parts) != 2 || parts[0] != s.config.AuthUsername || parts[1] != s.config.AuthPassword {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid username or password")
-	}
-
-	return handler(ctx, req)
-}
-
-func (s *GRPCServer) streamAuthInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	if !s.config.AuthEnabled {
-		return handler(srv, ss)
-	}
-
-	md, ok := metadata.FromIncomingContext(ss.Context())
 	if !ok {
 		return status.Errorf(codes.Unauthenticated, "metadata is not provided")
 	}
 
-	values := md["authorization"]
-	if len(values) == 0 {
-		return status.Errorf(codes.Unauthenticated, "authorization token is not provided")
+	// 1. Check x-api-key or apiKey metadata
+	var apiKey string
+	if vals := md["x-api-key"]; len(vals) > 0 {
+		apiKey = vals[0]
+	} else if vals := md["api-key"]; len(vals) > 0 {
+		apiKey = vals[0]
 	}
 
-	auth := values[0]
-	if !strings.HasPrefix(auth, "Basic ") {
-		return status.Errorf(codes.Unauthenticated, "invalid authorization token format")
+	// 2. Check Authorization header (Bearer or direct token)
+	if apiKey == "" {
+		if vals := md["authorization"]; len(vals) > 0 {
+			auth := vals[0]
+			if strings.HasPrefix(auth, "Bearer ") {
+				apiKey = strings.TrimPrefix(auth, "Bearer ")
+			} else if strings.HasPrefix(auth, "pk_") {
+				apiKey = auth
+			} else if strings.HasPrefix(auth, "Basic ") {
+				decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
+				if err == nil {
+					parts := strings.SplitN(string(decoded), ":", 2)
+					if len(parts) >= 1 && strings.HasPrefix(parts[0], "pk_") {
+						apiKey = parts[0]
+					} else if len(parts) == 2 && strings.HasPrefix(parts[1], "pk_") {
+						apiKey = parts[1]
+					}
+				}
+			}
+		}
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
-	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "invalid authorization token")
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return status.Errorf(codes.Unauthenticated, "missing API Key. Please provide x-api-key or Bearer token")
 	}
 
-	parts := strings.SplitN(string(decoded), ":", 2)
-	if len(parts) != 2 || parts[0] != s.config.AuthUsername || parts[1] != s.config.AuthPassword {
-		return status.Errorf(codes.Unauthenticated, "invalid username or password")
+	// Check against static config APIKey if set
+	if s.config.APIKey != "" && apiKey == s.config.APIKey {
+		return nil
 	}
 
+	// Check against Database API Keys
+	if s.db != nil {
+		if rec, err := s.db.ValidateAPIKey(apiKey); err == nil && rec != nil {
+			return nil
+		}
+	}
+
+	return status.Errorf(codes.Unauthenticated, "invalid or revoked API Key")
+}
+
+func (s *GRPCServer) authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	if err := s.validateCredentials(ctx); err != nil {
+		return nil, err
+	}
+	return handler(ctx, req)
+}
+
+func (s *GRPCServer) streamAuthInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if err := s.validateCredentials(ss.Context()); err != nil {
+		return err
+	}
 	return handler(srv, ss)
 }
 

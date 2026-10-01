@@ -67,8 +67,12 @@ func (a *App) UpdateSettings(key, value interface{}) error {
 	return a.core.UpdateSettings(key, value)
 }
 
-func (a *App) SaveConfig(engineIP string, socksPort int, httpPort int, username string, password string) error {
-	return a.core.SaveConfig(engineIP, socksPort, httpPort, username, password)
+func (a *App) SaveConfig(engineIP string, apiKey string, socksPort int, httpPort int) error {
+	return a.core.SaveConfig(engineIP, apiKey, socksPort, httpPort)
+}
+
+func (a *App) TestConnection(engineAddress string, apiKey string) (map[string]interface{}, error) {
+	return a.core.TestConnection(engineAddress, apiKey)
 }
 
 func (a *App) GetLocalIPs() []string {

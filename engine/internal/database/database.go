@@ -72,4 +72,22 @@ type DB interface {
 	// Lifecycle
 	Migrate() error
 	Close() error
+
+	// API Keys
+	CreateAPIKey(name, role string) (*APIKeyRecord, error)
+	ValidateAPIKey(key string) (*APIKeyRecord, error)
+	ListAPIKeys() ([]APIKeyRecord, error)
+	RevokeAPIKey(id string) error
+	EnsureDefaultAPIKey() (*APIKeyRecord, bool, error)
+}
+
+// APIKeyRecord represents an authorized client or admin key.
+type APIKeyRecord struct {
+	ID         string    `json:"id"`
+	Key        string    `json:"key"`
+	Name       string    `json:"name"`
+	Role       string    `json:"role"` // "admin", "client", "readonly"
+	Revoked    bool      `json:"revoked"`
+	LastUsedAt time.Time `json:"last_used_at,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
 }

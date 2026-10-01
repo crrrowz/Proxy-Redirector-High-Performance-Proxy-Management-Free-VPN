@@ -42,6 +42,65 @@ func TestNewSQLiteDB_MigratesSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config table not found: %v", err)
 	}
+	err = db.db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'").Scan(&name)
+	if err != nil {
+		t.Fatalf("api_keys table not found: %v", err)
+	}
+}
+
+func TestAPIKeysManagement(t *testing.T) {
+	db := newTestDB(t)
+
+	// Ensure default master key
+	master, created, err := db.EnsureDefaultAPIKey()
+	if err != nil {
+		t.Fatalf("EnsureDefaultAPIKey failed: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected created to be true for empty db")
+	}
+	if master.Role != "admin" {
+		t.Fatalf("expected admin role, got %s", master.Role)
+	}
+
+	// Validate valid key
+	rec, err := db.ValidateAPIKey(master.Key)
+	if err != nil {
+		t.Fatalf("ValidateAPIKey failed: %v", err)
+	}
+	if rec.ID != master.ID {
+		t.Fatalf("expected ID %s, got %s", master.ID, rec.ID)
+	}
+
+	// Create a client key
+	clientKey, err := db.CreateAPIKey("Mobile Client", "client")
+	if err != nil {
+		t.Fatalf("CreateAPIKey failed: %v", err)
+	}
+	if clientKey.Role != "client" {
+		t.Fatalf("expected role client, got %s", clientKey.Role)
+	}
+
+	// List keys
+	keys, err := db.ListAPIKeys()
+	if err != nil {
+		t.Fatalf("ListAPIKeys failed: %v", err)
+	}
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 keys, got %d", len(keys))
+	}
+
+	// Revoke client key
+	err = db.RevokeAPIKey(clientKey.ID)
+	if err != nil {
+		t.Fatalf("RevokeAPIKey failed: %v", err)
+	}
+
+	// Validate revoked key should fail
+	_, err = db.ValidateAPIKey(clientKey.Key)
+	if err == nil {
+		t.Fatalf("expected validation of revoked key to fail")
+	}
 }
 
 func TestWALMode(t *testing.T) {

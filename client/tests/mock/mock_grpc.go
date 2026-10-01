@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	pb "github.com/crrrowz/proxy-redirector-v3/client/internal/engine/pb"
+	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )

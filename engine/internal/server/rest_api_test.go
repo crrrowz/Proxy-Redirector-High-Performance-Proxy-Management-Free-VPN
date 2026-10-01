@@ -42,7 +42,7 @@ func newTestREST(t *testing.T) *RESTServer {
 
 	ab := adblock.NewEngine(filepath.Join(tmpDir, "blocklist.json"))
 
-	return NewRESTServer(m, fh, ab, cfg)
+	return NewRESTServer(m, fh, ab, cfg, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -287,6 +287,7 @@ func TestHandleProxyAdd(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
+	time.Sleep(50 * time.Millisecond)
 }
 
 func TestHandleProxyAdd_MethodNotAllowed(t *testing.T) {

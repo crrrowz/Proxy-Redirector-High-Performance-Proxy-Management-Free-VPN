@@ -93,9 +93,39 @@ go run ./engine/cmd/engine
 
 # Access the embedded Web Dashboard in your browser:
 # http://localhost:9090
+
+
+# If you want to build Engine.exe
+.\scripts\build_engine.ps1
+
+# Outputs:
+# - Engine:  engine\build\engine.exe
 ```
 
-### 3. Building All Binaries (Windows / Linux)
+
+### 3. Running the Wails Desktop GUI Application (`ProxyRedirector.exe`)
+The Desktop GUI provides a native dark-theme desktop interface with tray minimization, home ping meters, and live Surge rotation controls:
+
+```powershell
+# 1. Build Desktop GUI executable
+.\scripts\build_client.ps1
+# Output: client\build\bin\ProxyRedirector.exe
+
+# 2. Launch directly from terminal or double-click start_gui.bat:
+.\start_gui.bat
+```
+
+**What to verify in GUI:**
+- **Home Screen**: Active proxy country flag, live ping meter, and connect/disconnect switch.
+- **Rotation Screen**: Real-time Surge interval slider, rotation strategy selection, and minimum score threshold.
+- **Devices Screen**: Connected LAN devices table with kick actions.
+- **Settings Screen**: Local port configuration and auth toggles.
+
+---
+
+
+
+### 4. Building All Binaries (Windows / Linux)
 ```powershell
 # Run the automated build script
 .\scripts\build_all.ps1
@@ -112,7 +142,13 @@ go run ./engine/cmd/engine
 
 The standalone CLI binary communicates directly with the engine and client core:
 
+
+
 ```bash
+# 1. Build the standalone CLI binary
+.\scripts\build_cli.ps1
+# Output: client\build\proxy-cli.exe
+
 # Start local proxy relays with country filter and Surge mode
 proxy-cli start --country US --surge --surge-interval 30
 
@@ -145,7 +181,8 @@ The `/saas` directory houses the enterprise Node.js backend built with **Clean A
 cd saas
 
 # 1. Start Supabase (Postgres 16, Studio, Redis) in Docker
-docker-compose -f docker-compose.supabase.yml up -d
+docker pull supabase/studio:latest
+docker compose -f docker-compose.supabase.yml up -d
 
 # 2. Install dependencies & generate Prisma client
 npm install

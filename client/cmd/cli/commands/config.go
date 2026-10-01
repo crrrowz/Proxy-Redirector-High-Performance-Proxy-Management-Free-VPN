@@ -6,21 +6,49 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crrrowz/proxy-redirector-v3/client/internal/config"
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/engine"
 )
 
 func runConfig(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("config", flag.ExitOnError)
-	engineAddr := fs.String("engine", "127.0.0.1:50051", "Engine gRPC server address")
-	authUser := fs.String("user", "", "Engine gRPC auth username")
-	authPass := fs.String("password", "", "Engine gRPC auth password")
+	engineAddr := fs.String("engine", "", "Engine gRPC server address")
+	apiKey := fs.String("key", "", "Engine API Key (pk_live_...)")
 	setParam := fs.String("set", "", "Update config parameter in KEY=VALUE format (e.g. MaxSpeedMs=3000)")
+	saveClient := fs.Bool("save-client", false, "Save provided --engine and --key into local client settings")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	grpcClient := engine.NewGRPCClient(*engineAddr, *authUser, *authPass)
+	savedCfg := config.LoadConfig()
+	if *saveClient {
+		if *engineAddr != "" {
+			savedCfg.EngineAddress = *engineAddr
+		}
+		if *apiKey != "" {
+			savedCfg.APIKey = *apiKey
+		}
+		if err := savedCfg.Save(); err != nil {
+			return fmt.Errorf("failed to save client configuration: %w", err)
+		}
+		fmt.Printf("✅ Saved local client settings (Engine: %s, Key configured: %v)\n", savedCfg.EngineAddress, savedCfg.APIKey != "")
+		return nil
+	}
+
+	addr := *engineAddr
+	key := *apiKey
+	if addr == "" {
+		addr = savedCfg.EngineAddress
+	}
+	if key == "" {
+		key = savedCfg.APIKey
+	}
+	if addr == "" {
+		addr = "127.0.0.1:50051"
+	}
+
+	grpcClient := engine.NewGRPCClientWithKey(addr, key)
 	if err := grpcClient.Connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect to engine: %w", err)
 	}

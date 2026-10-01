@@ -15,6 +15,7 @@
     <!-- Header / Titlebar -->
     <header class="top-nav">
         <div class="brand">
+            <button class="mobile-nav-toggle" id="mobile-nav-btn" onclick="toggleMobileNav()" title="Toggle Navigation">☰</button>
             <div class="status-orb" id="engine-status-orb"></div>
             <div class="brand-text">
                 <h1>Proxy Redirector</h1>
@@ -22,6 +23,8 @@
             </div>
         </div>
         <div class="top-meta">
+            <button class="btn sm" id="btn-lang-toggle" onclick="toggleLanguage()" title="تبديل اللغة / Toggle Language">🌐 العربية</button>
+            <button class="btn sm" id="btn-engine-toggle" onclick="toggleEngineState()" title="Pause or Resume Engine">⏸️ Pause</button>
             <div class="meta-item">
                 <span class="meta-label">REST API</span>
                 <span class="meta-val" id="api-port-badge">:9090</span>
@@ -63,6 +66,11 @@
                 <button class="nav-tab" data-tab="analytics" onclick="switchTab('analytics', this)">
                     <span class="tab-icon">📈</span>
                     <span>Analytics</span>
+                </button>
+                <button class="nav-tab" data-tab="devices" onclick="switchTab('devices', this)">
+                    <span class="tab-icon">📱</span>
+                    <span>LAN Devices</span>
+                    <span class="badge-count" id="nav-devices-count">1</span>
                 </button>
                 <div class="nav-section-title" style="margin-top: 16px;">System</div>
                 <button class="nav-tab" data-tab="settings" onclick="switchTab('settings', this)">
@@ -142,19 +150,19 @@
                         <div class="gateway-list">
                             <div class="gateway-item">
                                 <div class="gw-label">SOCKS5 Ingress (TCP)</div>
-                                <div class="gw-addr">0.0.0.0:1080</div>
+                                <div class="gw-addr" id="gw-socks5">192.168.1.1:1080</div>
                             </div>
                             <div class="gateway-item">
                                 <div class="gw-label">HTTP CONNECT Proxy</div>
-                                <div class="gw-addr">0.0.0.0:8080</div>
+                                <div class="gw-addr" id="gw-http">192.168.1.1:8080</div>
                             </div>
                             <div class="gateway-item">
                                 <div class="gw-label">gRPC RPC Core</div>
-                                <div class="gw-addr">127.0.0.1:50051</div>
+                                <div class="gw-addr" id="gw-grpc">192.168.1.1:50051</div>
                             </div>
                             <div class="gateway-item">
                                 <div class="gw-label">REST API & Dashboard</div>
-                                <div class="gw-addr">127.0.0.1:9090</div>
+                                <div class="gw-addr" id="gw-rest">192.168.1.1:9090</div>
                             </div>
                         </div>
                     </div>
@@ -193,7 +201,27 @@
                         <select class="select-filter" id="proxy-country-select" onchange="filterProxiesTable()">
                             <option value="">🌍 All Countries</option>
                         </select>
-                        <button class="btn primary sm" onclick="openAddProxyModal()">+ Add Custom Proxy</button>
+                        <button class="btn sm danger" onclick="purgeDeadProxies()" title="Delete all dead/blacklisted proxies">🧹 Purge Dead</button>
+                        <button class="btn sm" onclick="exportProxiesJson()">📥 Export</button>
+                        <button class="btn sm" onclick="openBulkImportModal()">📋 Bulk Import</button>
+                        <button class="btn primary sm" onclick="openAddProxyModal()">+ Add Proxy</button>
+                    </div>
+                </div>
+
+                <!-- Quick Filter Pills & Batch Operations Bar -->
+                <div class="filter-pills-row">
+                    <div class="pills-group">
+                        <button class="filter-pill active" data-filter="all" onclick="setQuickFilter('all', this)">All Proxies</button>
+                        <button class="filter-pill" data-filter="alive" onclick="setQuickFilter('alive', this)">✓ Alive Only</button>
+                        <button class="filter-pill" data-filter="ssl" onclick="setQuickFilter('ssl', this)">🔒 SSL Verified</button>
+                        <button class="filter-pill" data-filter="socks5" onclick="setQuickFilter('socks5', this)">SOCKS5</button>
+                        <button class="filter-pill" data-filter="http" onclick="setQuickFilter('http', this)">HTTP/S</button>
+                    </div>
+                    <div class="batch-bar" id="batch-actions-bar" style="display: none;">
+                        <span class="batch-count" id="batch-selected-count">0 selected</span>
+                        <button class="btn sm" onclick="batchRecheckSelected()">⚡ Re-check</button>
+                        <button class="btn sm danger" onclick="batchDeleteSelected()">🗑️ Delete</button>
+                        <button class="btn-action-sm" onclick="deselectAllProxies()">✕ Deselect</button>
                     </div>
                 </div>
 
@@ -202,22 +230,33 @@
                         <table id="proxies-data-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 38px; text-align: center;">
+                                        <input type="checkbox" id="th-select-all" onchange="toggleSelectAllProxies(this.checked)">
+                                    </th>
                                     <th>#</th>
-                                    <th>Endpoint (IP:Port)</th>
-                                    <th>Type</th>
-                                    <th>Country</th>
-                                    <th>Status</th>
-                                    <th>Latency</th>
-                                    <th>Score</th>
+                                    <th class="sortable" onclick="sortProxiesTable('endpoint')">Endpoint (IP:Port)</th>
+                                    <th class="sortable" onclick="sortProxiesTable('type')">Type</th>
+                                    <th class="sortable" onclick="sortProxiesTable('country')">Country</th>
+                                    <th class="sortable" onclick="sortProxiesTable('alive')">Status</th>
+                                    <th class="sortable" onclick="sortProxiesTable('latency')">Latency</th>
+                                    <th class="sortable" onclick="sortProxiesTable('score')">Score</th>
                                     <th>SSL</th>
-                                    <th>Fails</th>
+                                    <th class="sortable" onclick="sortProxiesTable('fails')">Fails</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="proxies-tbody">
-                                <tr><td colspan="10" class="table-loading">Loading proxy records...</td></tr>
+                                <tr><td colspan="11" class="table-loading">Loading proxy records...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="pagination-bar" id="proxy-pagination-bar">
+                        <span id="proxy-page-info">Showing 0-0 of 0 proxies</span>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="proxy-prev-btn" onclick="prevProxyPage()">◀ Prev</button>
+                            <span id="proxy-current-page" style="font-family:var(--font-mono)">Page 1 / 1</span>
+                            <button class="pagination-btn" id="proxy-next-btn" onclick="nextProxyPage()">Next ▶</button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -230,6 +269,8 @@
                         <span class="subtitle">Intercepts advertising networks, telemetry, and tracking at the proxy level</span>
                     </div>
                     <div class="toolbar-actions">
+                        <button class="btn sm" onclick="exportAdBlockRules()">📤 Export Rules</button>
+                        <button class="btn sm" onclick="openBulkAdBlockModal()">📋 Bulk Import</button>
                         <label class="toggle-switch">
                             <input type="checkbox" id="adblock-master-toggle" onchange="toggleAdblockMaster(this.checked)" checked>
                             <span class="toggle-slider"></span>
@@ -326,6 +367,7 @@
                         <span class="subtitle">Live socket requests routed through local proxy instances</span>
                     </div>
                     <div class="toolbar-actions">
+                        <button class="btn sm" id="btn-traffic-pause" onclick="toggleTrafficPause()">⏸️ Pause Stream</button>
                         <select class="select-filter" id="traffic-status-filter" onchange="filterTrafficStream()">
                             <option value="all">All Traffic</option>
                             <option value="success">✓ Success (Forwarded)</option>
@@ -333,6 +375,7 @@
                             <option value="failed">✗ Failed / Timed Out</option>
                         </select>
                         <input type="text" class="input-search" id="traffic-search-input" placeholder="🔍 Search host, IP..." oninput="filterTrafficStream()">
+                        <button class="btn sm" onclick="exportTrafficLog()">📥 Export</button>
                         <button class="btn sm" onclick="clearTrafficLog()">Clear Buffer</button>
                     </div>
                 </div>
@@ -402,6 +445,29 @@
                     </div>
                 </div>
 
+                <!-- Analytics Charts Grid -->
+                <div class="grid-2col mb-16">
+                    <!-- Country Distribution Chart -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🌍 Geographical Distribution</h3>
+                        </div>
+                        <div class="chart-container" id="chart-country-dist">
+                            <div class="chart-loading">Computing geographical spread...</div>
+                        </div>
+                    </div>
+
+                    <!-- Latency Histogram -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>⚡ Latency Breakdown (ms)</h3>
+                        </div>
+                        <div class="chart-container" id="chart-latency-hist">
+                            <div class="chart-loading">Computing latency distribution...</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="panel no-pad">
                     <div class="panel-pad-header">
                         <h3>🏆 Top Proxy Leaderboard (Ranked by Reliability Score)</h3>
@@ -428,14 +494,54 @@
                 </div>
             </section>
 
-            <!-- ═══ TAB 6: Settings ═══ -->
+            <!-- ═══ TAB 6: LAN Devices ═══ -->
+            <section id="tab-devices" class="tab-content">
+                <div class="toolbar">
+                    <div class="toolbar-title">
+                        <h2>📱 Connected LAN Devices & Clients</h2>
+                        <span class="subtitle">Live discovery of devices connected to the SOCKS5 / HTTP Proxy Gateways</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn sm" onclick="fetchDevices()">🔄 Refresh Devices</button>
+                    </div>
+                </div>
+
+                <div class="panel no-pad">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Client IP</th>
+                                    <th>Device / Gateway</th>
+                                    <th>Protocol</th>
+                                    <th>Total Requests</th>
+                                    <th>Avg Response</th>
+                                    <th>Status</th>
+                                    <th>Last Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devices-tbody">
+                                <tr><td colspan="7" class="table-loading">Scanning network for connected devices...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ TAB 7: Settings ═══ -->
             <section id="tab-settings" class="tab-content">
                 <div class="toolbar">
                     <div class="toolbar-title">
                         <h2>⚙️ Engine Configuration</h2>
                         <span class="subtitle">Persisted parameters saved to <code>data/config.json</code></span>
                     </div>
-                    <button class="btn primary" onclick="saveEngineConfig()">💾 Save Changes</button>
+                    <div class="toolbar-actions">
+                        <button class="btn sm" onclick="exportConfigJson()">📤 Export Config</button>
+                        <button class="btn sm" onclick="triggerImportConfig()">📥 Import Config</button>
+                        <input type="file" id="config-file-input" style="display: none;" accept=".json" onchange="importConfigFile(event)">
+                        <button class="btn sm danger" onclick="resetConfigDefaults()">🔄 Reset Defaults</button>
+                        <button class="btn primary" onclick="saveEngineConfig()">💾 Save Changes</button>
+                    </div>
                 </div>
 
                 <div class="grid-2col">
@@ -517,6 +623,66 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label>HTTP Verification URL</label>
+                            <input type="text" class="input-text" id="cfg-CHECK_URL" value="http://httpbin.org/ip">
+                        </div>
+                        <div class="form-group">
+                            <label>HTTPS Verification URL</label>
+                            <input type="text" class="input-text" id="cfg-HTTPS_CHECK_URL" value="https://httpbin.org/ip">
+                        </div>
+                    </div>
+
+                    <!-- Auto-Rotation & Scheduling -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🔄 Automatic Rotation Engine</h3>
+                        </div>
+                        <div class="form-row-toggle">
+                            <span>Enable Automatic Route Rotation</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="cfg-ROTATION_ENABLED">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-row-toggle">
+                            <span>Rotate Only SSL Verified Nodes</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="cfg-ROTATION_SSL_ONLY">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label>Rotation Interval (Seconds)</label>
+                            <input type="number" class="input-text" id="cfg-ROTATION_INTERVAL_SEC" min="5" max="3600" value="60">
+                        </div>
+                        <div class="form-group">
+                            <label>Rotation Pool Candidate Size</label>
+                            <input type="number" class="input-text" id="cfg-ROTATION_POOL_SIZE" min="2" max="50" value="10">
+                        </div>
+                    </div>
+
+                    <!-- Scoring Weights -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>🏆 Smart Scoring Weights</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Base Alive Score</label>
+                            <input type="number" class="input-text" id="cfg-SCORE_ALIVE" step="1" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Speed Bonus Weight</label>
+                            <input type="number" class="input-text" id="cfg-SCORE_SPEED_MAX" step="1" value="200">
+                        </div>
+                        <div class="form-group">
+                            <label>Success Rate Weight</label>
+                            <input type="number" class="input-text" id="cfg-SCORE_SUCCESS_RATE_MAX" step="1" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label>SSL Bonus Points</label>
+                            <input type="number" class="input-text" id="cfg-SCORE_SSL_BONUS" step="1" value="20">
+                        </div>
                     </div>
                 </div>
 
@@ -566,6 +732,80 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Bulk Import Proxies -->
+    <div id="modal-bulk-import" class="modal-backdrop" onclick="closeBulkImportModal(event)">
+        <div class="modal-window lg" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>📋 Bulk Import Proxies</h3>
+                <button class="btn-close" onclick="closeBulkImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Default Protocol Type</label>
+                    <select class="select-filter" id="m-bulk-type">
+                        <option value="socks5">SOCKS5</option>
+                        <option value="socks4">SOCKS4</option>
+                        <option value="http">HTTP</option>
+                        <option value="https">HTTPS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Paste Proxy List (one per line: <code>ip:port</code> or <code>ip:port:user:pass</code> or <code>socks5://ip:port</code>)</label>
+                    <textarea class="input-textarea" id="m-bulk-text" rows="8" placeholder="127.0.0.1:1080
+192.168.1.50:8080:username:password
+socks5://45.33.21.99:9050"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeBulkImportModal()">Cancel</button>
+                <button class="btn success" onclick="submitBulkProxies()">📥 Import All Proxies</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Bulk Import AdBlock Rules -->
+    <div id="modal-bulk-adblock" class="modal-backdrop" onclick="closeBulkAdBlockModal(event)">
+        <div class="modal-window lg" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>🛡️ Bulk Import AdBlock Rules</h3>
+                <button class="btn-close" onclick="closeBulkAdBlockModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="grid-2col mb-12">
+                    <div class="form-group">
+                        <label>Target List</label>
+                        <select class="select-filter" id="m-adblock-target">
+                            <option value="blocklist">🚫 Blocklist (Rules)</option>
+                            <option value="whitelist">✅ Whitelist (Exceptions)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Category (for Blocklist)</label>
+                        <select class="select-filter" id="m-adblock-cat">
+                            <option value="ads">Ads</option>
+                            <option value="tracking">Tracking</option>
+                            <option value="malware">Malware</option>
+                            <option value="custom" selected>Custom</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Paste Domains (one per line, e.g. <code>ads.example.com</code> or <code>*telemetry*</code>)</label>
+                    <textarea class="input-textarea" id="m-adblock-text" rows="8" placeholder="ads.doubleclick.net
+telemetry.sample.org
+tracking.analytics.io"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeBulkAdBlockModal()">Cancel</button>
+                <button class="btn success" onclick="submitBulkAdBlock()">📥 Import Rules</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="app.js?v=3.0.0"></script>
 </body>

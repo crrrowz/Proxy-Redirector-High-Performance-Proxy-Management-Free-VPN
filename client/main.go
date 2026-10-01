@@ -27,7 +27,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 2. Start gRPC Client to Engine
-	grpcClient := engine.NewGRPCClient(cfg.EngineAddress, cfg.AuthUsername, cfg.AuthPassword)
+	grpcClient := engine.NewGRPCClientWithKey(cfg.EngineAddress, cfg.APIKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	if err := grpcClient.Connect(ctx); err != nil {
 		log.Printf("Failed to connect to engine: %v. Please make sure Engine.exe is running.", err)

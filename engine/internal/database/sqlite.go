@@ -1,7 +1,9 @@
 package database
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -319,6 +321,180 @@ func (s *SQLiteDB) GetAllConfig() (map[string]string, error) {
 }
 
 // ---------------------------------------------------------------------------
+// API Keys
+// ---------------------------------------------------------------------------
+
+func generateSecureToken(prefix string, bytesLen int) (string, error) {
+	b := make([]byte, bytesLen)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(b), nil
+}
+
+// CreateAPIKey generates and stores a new API key with the given name and role.
+func (s *SQLiteDB) CreateAPIKey(name, role string) (*APIKeyRecord, error) {
+	if role == "" {
+		role = "client"
+	}
+	id, err := generateSecureToken("id_", 8)
+	if err != nil {
+		return nil, fmt.Errorf("generate id: %w", err)
+	}
+	key, err := generateSecureToken("pk_live_", 24)
+	if err != nil {
+		return nil, fmt.Errorf("generate key: %w", err)
+	}
+
+	now := time.Now().UTC()
+	_, err = s.db.Exec(`
+		INSERT INTO api_keys (id, key, name, role, revoked, created_at)
+		VALUES (?, ?, ?, ?, 0, ?)
+	`, id, key, name, role, now.Format(time.RFC3339))
+	if err != nil {
+		return nil, fmt.Errorf("insert api_key: %w", err)
+	}
+
+	return &APIKeyRecord{
+		ID:        id,
+		Key:       key,
+		Name:      name,
+		Role:      role,
+		Revoked:   false,
+		CreatedAt: now,
+	}, nil
+}
+
+// ValidateAPIKey checks if an API key is valid and not revoked, updating its last_used_at.
+func (s *SQLiteDB) ValidateAPIKey(key string) (*APIKeyRecord, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil, fmt.Errorf("empty api key")
+	}
+
+	var rec APIKeyRecord
+	var lastUsedStr, createdStr string
+	var revokedInt int
+
+	err := s.db.QueryRow(`
+		SELECT id, key, name, role, revoked, last_used_at, created_at
+		FROM api_keys
+		WHERE key = ?
+	`, key).Scan(&rec.ID, &rec.Key, &rec.Name, &rec.Role, &revokedInt, &lastUsedStr, &createdStr)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("invalid api key")
+		}
+		return nil, err
+	}
+
+	rec.Revoked = (revokedInt != 0)
+	if rec.Revoked {
+		return nil, fmt.Errorf("api key is revoked")
+	}
+
+	if lastUsedStr != "" {
+		rec.LastUsedAt, _ = time.Parse(time.RFC3339, lastUsedStr)
+	}
+	if createdStr != "" {
+		rec.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	}
+
+	// Update last_used_at async / best-effort
+	nowStr := time.Now().UTC().Format(time.RFC3339)
+	go func() {
+		_, _ = s.db.Exec("UPDATE api_keys SET last_used_at = ? WHERE id = ?", nowStr, rec.ID)
+	}()
+
+	return &rec, nil
+}
+
+// ListAPIKeys returns all API keys.
+func (s *SQLiteDB) ListAPIKeys() ([]APIKeyRecord, error) {
+	rows, err := s.db.Query(`
+		SELECT id, key, name, role, revoked, last_used_at, created_at
+		FROM api_keys
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []APIKeyRecord
+	for rows.Next() {
+		var rec APIKeyRecord
+		var lastUsedStr, createdStr string
+		var revokedInt int
+		if err := rows.Scan(&rec.ID, &rec.Key, &rec.Name, &rec.Role, &revokedInt, &lastUsedStr, &createdStr); err != nil {
+			continue
+		}
+		rec.Revoked = (revokedInt != 0)
+		if lastUsedStr != "" {
+			rec.LastUsedAt, _ = time.Parse(time.RFC3339, lastUsedStr)
+		}
+		if createdStr != "" {
+			rec.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		}
+		records = append(records, rec)
+	}
+	return records, rows.Err()
+}
+
+// RevokeAPIKey marks an API key as revoked.
+func (s *SQLiteDB) RevokeAPIKey(id string) error {
+	res, err := s.db.Exec("UPDATE api_keys SET revoked = 1 WHERE id = ? OR key = ?", id, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("api key not found")
+	}
+	return nil
+}
+
+// EnsureDefaultAPIKey creates a master admin key if no active keys exist.
+// Returns (keyRecord, createdNew, error).
+func (s *SQLiteDB) EnsureDefaultAPIKey() (*APIKeyRecord, bool, error) {
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM api_keys WHERE revoked = 0").Scan(&count)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if count > 0 {
+		var rec APIKeyRecord
+		var lastUsedStr, createdStr string
+		var revokedInt int
+		err := s.db.QueryRow(`
+			SELECT id, key, name, role, revoked, last_used_at, created_at
+			FROM api_keys
+			WHERE revoked = 0 AND role = 'admin'
+			ORDER BY created_at ASC
+			LIMIT 1
+		`).Scan(&rec.ID, &rec.Key, &rec.Name, &rec.Role, &revokedInt, &lastUsedStr, &createdStr)
+		if err == nil {
+			rec.Revoked = (revokedInt != 0)
+			if lastUsedStr != "" {
+				rec.LastUsedAt, _ = time.Parse(time.RFC3339, lastUsedStr)
+			}
+			if createdStr != "" {
+				rec.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+			}
+			return &rec, false, nil
+		}
+	}
+
+	// Create master key
+	keyRec, err := s.CreateAPIKey("Master Admin Key", "admin")
+	if err != nil {
+		return nil, false, err
+	}
+	return keyRec, true, nil
+}
+
+// ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
@@ -362,5 +538,15 @@ CREATE TABLE IF NOT EXISTS config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'client',
+    revoked INTEGER DEFAULT 0,
+    last_used_at TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
 );
 `

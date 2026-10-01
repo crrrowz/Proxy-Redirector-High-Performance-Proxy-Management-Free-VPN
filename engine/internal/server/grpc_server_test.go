@@ -9,7 +9,7 @@ import (
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/config"
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/failover"
 	"github.com/crrrowz/proxy-redirector-v3/engine/internal/proxy"
-	pb "github.com/crrrowz/proxy-redirector-v3/engine/internal/server/pb"
+	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 	"github.com/crrrowz/proxy-redirector-v3/shared/models"
 	"path/filepath"
 )
@@ -33,7 +33,7 @@ func newTestGRPC(t *testing.T, count int) *GRPCServer {
 
 	ab := adblock.NewEngine(filepath.Join(tmpDir, "blocklist.json"))
 
-	return NewGRPCServer(m, fh, ab, cfg)
+	return NewGRPCServer(m, fh, ab, cfg, nil)
 }
 
 func generateProxies(n int) ([]*models.Proxy, map[string]*models.ProxyStatus) {

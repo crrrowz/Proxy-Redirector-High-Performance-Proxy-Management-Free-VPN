@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -455,8 +456,6 @@ func (m *Manager) AddCustomProxy(ip string, port int, ptype string, user, pass s
 		
 		// Trigger async save
 		go func() {
-			m.mu.RLock()
-			defer m.mu.RUnlock()
 			m.SaveSortedDataFile()
 		}()
 	}
@@ -581,4 +580,71 @@ func (m *Manager) ReportFailure(proxyID string) {
 	// Analytics penalizes based on ConsecutiveFailures, but we force Alive=false
 	// so it gets temporarily blacklisted until the next check.
 	m.saveStatusFile()
+}
+
+// RemoveProxy removes a proxy by ID from memory and disk.
+func (m *Manager) RemoveProxy(proxyID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.byID[proxyID]; !exists {
+		return false
+	}
+
+	delete(m.byID, proxyID)
+	delete(m.status, proxyID)
+
+	newProxies := make([]*models.Proxy, 0, len(m.proxies)-1)
+	for _, p := range m.proxies {
+		if p.ID != proxyID {
+			newProxies = append(newProxies, p)
+		}
+	}
+	m.proxies = newProxies
+
+	m.saveStatusFile()
+	go m.SaveSortedDataFile()
+	return true
+}
+
+// PurgeDeadProxies removes all dead or blacklisted proxies from the pool.
+func (m *Manager) PurgeDeadProxies() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	purged := 0
+	newProxies := make([]*models.Proxy, 0, len(m.proxies))
+	for _, p := range m.proxies {
+		st := m.status[p.ID]
+		if st != nil && (!st.Alive || st.Blacklisted) {
+			delete(m.byID, p.ID)
+			delete(m.status, p.ID)
+			purged++
+		} else {
+			newProxies = append(newProxies, p)
+		}
+	}
+	m.proxies = newProxies
+
+	if purged > 0 {
+		m.saveStatusFile()
+		go m.SaveSortedDataFile()
+	}
+	return purged
+}
+
+// RecheckSingleProxy performs a live verification on a single proxy.
+func (m *Manager) RecheckSingleProxy(ctx context.Context, proxyID string) (*models.CheckResult, error) {
+	m.mu.RLock()
+	p, exists := m.byID[proxyID]
+	m.mu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("proxy not found: %s", proxyID)
+	}
+
+	checkCfg := ConfigToCheckConfig(m.config)
+	res := CheckSingle(ctx, p, checkCfg)
+	m.UpdateStatus([]*models.CheckResult{res})
+	return res, nil
 }

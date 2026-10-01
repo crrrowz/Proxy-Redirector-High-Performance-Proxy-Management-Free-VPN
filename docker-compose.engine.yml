@@ -1,0 +1,26 @@
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: engine/Dockerfile
+    container_name: proxy-engine
+    restart: unless-stopped
+    ports:
+      - "50051:50051" # gRPC API
+      - "9090:9090"   # REST API & Web Dashboard
+      - "1080:1080"   # Optional Remote SOCKS5
+      - "8080:8080"   # Optional Remote HTTP Proxy
+    environment:
+      - TZ=UTC
+    volumes:
+      - engine-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9090/api/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  engine-data:
+    driver: local
