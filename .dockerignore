@@ -1,0 +1,38 @@
+# Version Control & Git Internals
+.git/
+.gitignore
+.gitattributes
+
+# Environment & Secret Files
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+
+# Local Dependencies
+node_modules/
+/client/frontend/node_modules/
+/saas/node_modules/
+/saas/dist/
+
+# Binaries & Compiled Artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+/engine/build/
+/client/build/
+
+# Local Databases & Caches
+*.db
+*.db-wal
+*.db-shm
+graft/
+
+# Logs & OS Files
+*.log
+.DS_Store
+Thumbs.db
+PowerShellHistory.txt

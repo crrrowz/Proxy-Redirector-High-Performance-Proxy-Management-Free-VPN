@@ -1,0 +1,29 @@
+# Version Control & Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment Configurations & Secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+
+# Dependency & Build Directories
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Testing & Logs
+coverage/
+*.log
+
+# IDE & OS Files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

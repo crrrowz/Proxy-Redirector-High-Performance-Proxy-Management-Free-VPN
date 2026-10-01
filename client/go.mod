@@ -1,6 +1,6 @@
 module github.com/crrrowz/proxy-redirector-v3/client
 
-go 1.26
+go 1.22
 
 require (
 	github.com/crrrowz/proxy-redirector-v3/shared v0.0.0-00010101000000-000000000000

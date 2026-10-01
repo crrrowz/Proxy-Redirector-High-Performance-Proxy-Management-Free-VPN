@@ -1,10 +1,18 @@
 version: '3.8'
 
 services:
+  # ── 1. SaaS Application API Service ──
   saas-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: proxy-saas-api
     restart: unless-stopped
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "4000:4000"
     environment:
@@ -14,44 +22,111 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_ACCESS_SECRET=changeme-access-secret-32-chars-long
       - JWT_REFRESH_SECRET=changeme-refresh-secret-32-chars-long
+    networks:
+      - public_ingress
+      - private_storage
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 1024M
+          pids: 100
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── 2. PostgreSQL Storage Tier (Isolated Backend) ──
   postgres:
     image: postgres:16-alpine
     container_name: proxy-saas-postgres
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+      - SETUID
+      - SETGID
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgrespassword123
       POSTGRES_DB: proxy_redirector_saas
-    ports:
-      - "5432:5432"
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private_storage
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d proxy_redirector_saas"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── 3. Redis Cache & Token Blacklist (Isolated Backend) ──
   redis:
     image: redis:7-alpine
     container_name: proxy-saas-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - redis_data:/data
+    networks:
+      - private_storage
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+# ── Multi-Tier Network Segmentation ──
+networks:
+  public_ingress:
+    driver: bridge
+  private_storage:
+    driver: bridge
+    internal: true # Complete isolation: no external host port leakage or outbound routing
+
+# ── Named Volumes ──
 volumes:
   postgres_data:
   redis_data:

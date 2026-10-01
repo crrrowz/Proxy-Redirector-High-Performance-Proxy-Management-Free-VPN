@@ -1,6 +1,6 @@
 module github.com/crrrowz/proxy-redirector-v3/shared
 
-go 1.26
+go 1.22
 
 require (
 	google.golang.org/grpc v1.83.2
