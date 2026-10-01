@@ -85,7 +85,27 @@ go run ./engine/cmd/engine
 
 ---
 
-### 💻 Step 2: Testing the Headless CLI (`proxy-cli`)
+### 💻 Step 2: Running the Wails Desktop GUI Application (`ProxyRedirector.exe`)
+The Desktop GUI provides a native dark-theme desktop interface with tray minimization, home ping meters, and live Surge rotation controls:
+
+```powershell
+# 1. Build Desktop GUI executable
+.\scripts\build_client.ps1
+# Output: client\build\bin\ProxyRedirector.exe
+
+# 2. Launch directly from terminal or double-click start_gui.bat:
+.\start_gui.bat
+```
+
+**What to verify in GUI:**
+- **Home Screen**: Active proxy country flag, live ping meter, and connect/disconnect switch.
+- **Rotation Screen**: Real-time Surge interval slider, rotation strategy selection, and minimum score threshold.
+- **Devices Screen**: Connected LAN devices table with kick actions.
+- **Settings Screen**: Local port configuration and auth toggles.
+
+---
+
+### 💻 Step 3: Testing the Headless CLI (`proxy-cli`)
 In a second terminal window, you can interact with the running engine using the native CLI binary:
 
 ```bash
@@ -114,7 +134,7 @@ In a second terminal window, you can interact with the running engine using the 
 
 ---
 
-### 🔌 Step 3: Routing Real Traffic Through the Local Proxy Relays
+### 🔌 Step 4: Routing Real Traffic Through the Local Proxy Relays
 With the engine running, configure any browser, phone, or curl command to route traffic through the local relay ports:
 
 ```powershell
@@ -130,13 +150,14 @@ curl.exe --socks5 "127.0.0.1:1080" "https://api.ipify.org"
 
 ---
 
-### ☁️ Step 4: Running the Cloud SaaS Backend (Node.js & TypeScript)
+### ☁️ Step 5: Running the Cloud SaaS Backend (Node.js & TypeScript)
 
 ```bash
 cd saas
 
 # 1. Start Supabase (PostgreSQL 15, Studio, Redis, Kong) in Docker
-docker-compose -f docker-compose.supabase.yml up -d
+docker pull supabase/studio:latest
+docker compose -f docker-compose.supabase.yml up -d
 
 # 2. Install dependencies & generate Prisma client
 npm install
@@ -155,7 +176,7 @@ npm run dev
 
 ---
 
-### 🌐 Step 5: Running the SaaS Web Portal (`saas/frontend`)
+### 🌐 Step 6: Running the SaaS Web Portal (`saas/frontend`)
 
 ```bash
 cd saas/frontend

@@ -10,7 +10,7 @@ import (
 	"github.com/crrrowz/proxy-redirector-v3/client/internal/proxy"
 	"github.com/crrrowz/proxy-redirector-v3/shared/metadata"
 	"github.com/crrrowz/proxy-redirector-v3/shared/models"
-	pb "github.com/crrrowz/proxy-redirector-v3/client/internal/engine/pb"
+	pb "github.com/crrrowz/proxy-redirector-v3/shared/pb"
 )
 
 type App struct {

@@ -2,8 +2,6 @@
 # Self-Hosted Supabase Stack for Proxy Redirector SaaS
 # ═══════════════════════════════════════════════════════════════════
 
-version: '3.8'
-
 services:
   # ── 1. PostgreSQL Database with Supabase Extensions ──
   supabase-db:
@@ -54,7 +52,7 @@ services:
 
   # ── 4. Supabase Studio Web UI Dashboard ──
   supabase-studio:
-    image: supabase/studio:20240101-8e3b2e5
+    image: supabase/studio:latest
     container_name: supabase-studio
     restart: unless-stopped
     ports:
